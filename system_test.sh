@@ -17,7 +17,7 @@
 # test runner
 
 trap 'printf "$0: exit code $? on line $LINENO\nFAIL: $this\n"; exit 1' ERR \
-	2> /dev/null || exec bash $0 "$@"
+    2> /dev/null || exec bash $0 "$@"
 typeset -i tests=0
 function try { let tests+=1; this="$1"; }
 
@@ -29,11 +29,17 @@ function skip { printf "s"; }
 
 function zz { sleep 0.25; }
 function setup { rm -f $tmp/*; touch $tmp/file{1,2}; zz; }
-tmp=$(cd $(mktemp -dt entr_system_test.XXXXXXXXXX); pwd -P)
+tmp=$(cd $(mktemp -d ${TMPDIR:-/tmp}/entr-system-test-XXXXXX); pwd -P)
+tsession=$(basename $tmp)
+
+clear_tty='test -t 0 && stty echo icanon'
+clear_tmux='tmux kill-session -t $tsession 2>/dev/null || true'
+clear_tmp='rm -r $tmp'
+trap "$clear_tty; $clear_tmux; $clear_tmp" EXIT
 
 # required utilities
 
-utils="hg vim"
+utils="hg vim tmux"
 for util in $utils; do
 	p=$(which $util 2> /dev/null) || {
 		echo "ERROR: could not locate the '$util' utility" >&2
@@ -42,7 +48,7 @@ for util in $utils; do
 	}
 done
 
-# tests
+# fast tests
 
 try "no arguments"
 	./entr 2> /dev/null || code=$?
@@ -65,6 +71,31 @@ try "no regular files provided as input"
 	ls $tmp | ./entr echo 2> /dev/null || code=$?
 	rmdir $tmp/dir1
 	assert $code 1
+
+# terminal tests
+
+unset TMUX
+
+try "spacebar triggers utility"
+	setup
+	tmux new-session -s $tsession -d
+	echo "waiting" > $tmp/file1
+	echo "finished" > $tmp/file2
+	tmux send-keys -t $tsession:0 \
+	    "ls $tmp/file2 | ./entr -p cp $tmp/file2 $tmp/file1" C-m ; zz
+	assert "$(cat $tmp/file1)" "waiting"
+	tmux send-keys -t $tsession:0 "xyz" C-m ; zz
+	assert "$(cat $tmp/file1)" "waiting"
+	tmux send-keys -t $tsession:0 " " ; zz
+	if [ $(uname | egrep 'Darwin') ]; then
+		skip "EVFILT_READ not supported on STDIN"
+	else
+		assert "$(cat $tmp/file1)" "finished"
+	fi
+	tmux send-keys -t $tsession:0 "q" ; zz
+	tmux kill-session -t $tsession
+
+# file system tests
 
 try "exec single shell utility and exit when a file is added to an implicit watch path"
 	setup
@@ -285,12 +316,12 @@ try "watch and exec a program that is overwritten"
 
 try "exec an interactive utility when a file changes"
 	setup
-	ls $tmp/file* | ./entr -p sh -c 'tty | colrm 9' 2> /dev/null > $tmp/exec.out &
+	ls $tmp/file* | ./entr -p sh -c 'tty | cut -c1-8' 2> /dev/null > $tmp/exec.out &
 	bgpid=$! ; zz
 	echo 456 >> $tmp/file2 ; zz
 	kill -INT $bgpid
 	wait $bgpid || assert "$?" "130"
-	if ! tty > /dev/null ; then
+	if ! test -t 0 ; then
 		skip "A TTY is not available"
 	else
 		assert "$(cat $tmp/exec.out | tr '/pts' '/tty')" "/dev/tty"
@@ -304,7 +335,7 @@ try "exec a command using shell option"
 	kill -INT $bgpid
 	wait $bgpid || assert "$?" "130"
 	assert "$(cat $tmp/exec.err)" ""
-	assert "$(cat $tmp/exec.out)" "$(printf ${tmp}'/file2: ASCII text')"
+	assert "$(head -n1 $tmp/exec.out)" "$(printf ${tmp}'/file2: ASCII text')"
 
 # extra slow tests that rely on timeouts
 
@@ -322,9 +353,5 @@ try "ensure that all subprocesses are terminated in restart mode when a file is 
 	pgrep -P $bgpid > /dev/null || assert "$?" "1"
 	assert "$(cat $tmp/exec.out)" "$(printf 'running\ncaught signal')"
 
-
-# cleanup
-rm -r $tmp
-
+this="exit 0"
 echo; echo "$tests tests PASSED"
-exit 0

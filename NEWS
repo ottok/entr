@@ -1,5 +1,10 @@
 = Release History
 
+== 3.8: August 11, 2017
+
+ - Run the utility if the spacebar is pressed
+ - 'q' for quit
+
 == 3.7: February 27, 2017
 
  - Terminate subprocess in restart mode if a file under watch disappears
