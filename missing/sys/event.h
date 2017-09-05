@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
+#define EVFILT_READ		(-1)
 #define EVFILT_VNODE		(-4)	/* attached to vnodes */
 
 /* actions */
@@ -38,6 +39,11 @@
 /* flags */
 #define EV_ONESHOT	0x0010		/* only report one occurrence */
 #define EV_CLEAR	0x0020		/* clear event state after reporting */
+
+/*
+ * data/hint flags for EVFILT_{READ|WRITE}, shared with userspace
+ */
+#define NOTE_LOWAT	0x0001		/* low water mark */
 
 /*
  * data/hint flags for EVFILT_VNODE, shared with userspace
