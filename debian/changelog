@@ -1,3 +1,13 @@
+entr (3.8-1) unstable; urgency=medium
+
+  * New upstream version 3.8:
+    - Handle 'q' and 'space' interactively
+  * Filter upstream tarball during import
+  * Switch to debhelper 10 (no changes needed)
+  * Standards-Version 4.0.0 (no changes needeed)
+
+ -- Yuri D'Elia <wavexx@thregr.org>  Tue, 05 Sep 2017 19:06:49 +0200
+
 entr (3.7-1) unstable; urgency=low
 
   * New upstream version 3.7:
