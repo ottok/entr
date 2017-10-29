@@ -1,12 +1,14 @@
-entr (3.8-1) unstable; urgency=medium
+entr (3.9-1) unstable; urgency=medium
 
-  * New upstream version 3.8:
+  * New upstream version 3.9:
     - Handle 'q' and 'space' interactively
+    - Fix use of poll(2) to avoid possible busy-loop on Linux
+    - Disable keyboard input if reading STDIN fails
   * Filter upstream tarball during import
   * Standards-Version 4.1.1 (no changes needeed)
   * Add support for GNU/kFreeBSD
 
- -- Yuri D'Elia <wavexx@thregr.org>  Wed, 13 Sep 2017 15:59:19 +0200
+ -- Yuri D'Elia <wavexx@thregr.org>  Sun, 29 Oct 2017 14:29:49 +0100
 
 entr (3.7-1) unstable; urgency=low
 
