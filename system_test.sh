@@ -87,11 +87,7 @@ try "spacebar triggers utility"
 	tmux send-keys -t $tsession:0 "xyz" C-m ; zz
 	assert "$(cat $tmp/file1)" "waiting"
 	tmux send-keys -t $tsession:0 " " ; zz
-	if [ $(uname | egrep 'Darwin') ]; then
-		skip "EVFILT_READ not supported on STDIN"
-	else
-		assert "$(cat $tmp/file1)" "finished"
-	fi
+	assert "$(cat $tmp/file1)" "finished"
 	tmux send-keys -t $tsession:0 "q" ; zz
 	tmux kill-session -t $tsession
 
@@ -336,6 +332,14 @@ try "exec a command using shell option"
 	wait $bgpid || assert "$?" "130"
 	assert "$(cat $tmp/exec.err)" ""
 	assert "$(head -n1 $tmp/exec.out)" "$(printf ${tmp}'/file2: ASCII text')"
+
+try "exec a command as a background task"
+	setup
+	(ls $tmp/file* | ./entr -ps 'echo terminating; kill $$' >$tmp/exec.out 2>$tmp/exec.err &)
+	zz
+	echo 456 >> $tmp/file2 ; zz
+	assert "$(cat $tmp/exec.err)" ""
+	assert "$(head -n1 $tmp/exec.out)" "terminating"
 
 # extra slow tests that rely on timeouts
 
