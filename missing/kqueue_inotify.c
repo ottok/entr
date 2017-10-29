@@ -17,6 +17,7 @@
 #include <sys/event.h>
 #include <sys/types.h>
 
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <poll.h>
@@ -33,6 +34,7 @@
 /* globals */
 
 extern WatchFile **files;
+int read_stdin;
 
 /* forwards */
 
@@ -55,7 +57,7 @@ file_by_descriptor(int wd) {
 
 #define EVENT_SIZE (sizeof (struct inotify_event))
 #define EVENT_BUF_LEN (32 * (EVENT_SIZE + 16))
-#define IN_ALL IN_CLOSE_WRITE|IN_DELETE_SELF|IN_MODIFY|IN_MOVE_SELF|IN_ATTRIB|IN_CREATE
+#define IN_ALL IN_CLOSE_WRITE|IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB|IN_CREATE
 
 /*
  * Conveniently inotify and kqueue ids both have the type `int`
@@ -84,6 +86,7 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 	const struct kevent *kev;
 	int ignored;
 	struct pollfd *pfd;
+	int nfds;
 
 	pfd = calloc(2, sizeof(struct pollfd));
 	pfd[0].fd = kq;
@@ -96,6 +99,13 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 		for (n=0; n<nchanges; n++) {
 			kev = changelist + (sizeof(struct kevent)*n);
 			file = (WatchFile *)kev->udata;
+
+			if (kev->filter == EVFILT_READ) {
+				if (kev->flags & EV_ADD)
+					read_stdin = 1;
+				if (kev->flags & EV_DELETE)
+					read_stdin = 0;
+			}
 
 			if (kev->filter != EVFILT_VNODE)
 				continue;
@@ -118,12 +128,20 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 		return nchanges - ignored;
 	}
 
-	if (timeout != 0 && (poll(pfd, 2, timeout->tv_nsec/1000000) == 0))
-		return 0;
+	if (read_stdin == 1)
+		nfds = 2; /* inotify and stdin */
+	else
+		nfds = 1; /* inotify */
+	if (timeout == NULL)
+		poll(pfd, nfds, -1);
+	else
+		poll(pfd, nfds, timeout->tv_nsec/1000000);
 
 	n = 0;
 	do {
-		if ((pfd[0].revents & POLLIN)) {
+		if (pfd[0].revents & (POLLERR|POLLNVAL))
+			errx(1, "bad fd %d", pfd[0].fd);
+		if (pfd[0].revents & POLLIN) {
 			pos = 0;
 			len = read(kq /* ifd */, &buf, EVENT_BUF_LEN);
 			if (len < 0) {
@@ -131,7 +149,7 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 				if (errno == EINTR)
 					continue;
 				else
-					perror("read");
+					errx(1, "read of fd %d failed", pfd[0].fd);
 			}
 			while ((pos < len) && (n < nevents)) {
 				iev = (struct inotify_event *) &buf[pos];
@@ -160,19 +178,23 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 					n++;
 			}
 		}
-		if ((pfd[1].revents & POLLIN)) {
-			fflags = 0;
-			eventlist[n].ident = pfd[1].fd;
-			eventlist[n].filter = EVFILT_READ;
-			eventlist[n].flags = 0;
-			eventlist[n].fflags = fflags;
-			eventlist[n].data = 0;
-			eventlist[n].udata = NULL;
-			n++;
-			break;
+		if (read_stdin == 1) {
+			if (pfd[1].revents & (POLLERR|POLLNVAL))
+				errx(1, "bad fd %d", pfd[1].fd);
+			else if (pfd[1].revents & (POLLHUP|POLLIN)) {
+				fflags = 0;
+				eventlist[n].ident = pfd[1].fd;
+				eventlist[n].filter = EVFILT_READ;
+				eventlist[n].flags = 0;
+				eventlist[n].fflags = fflags;
+				eventlist[n].data = 0;
+				eventlist[n].udata = NULL;
+				n++;
+				break;
+			}
 		}
 	}
-	while ((poll(pfd, 2, 50) > 0));
+	while ((poll(pfd, nfds, 50) > 0));
 	
 	(void) free(pfd);
 	return n;
