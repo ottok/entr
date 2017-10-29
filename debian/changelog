@@ -3,7 +3,7 @@ entr (3.8-1) unstable; urgency=medium
   * New upstream version 3.8:
     - Handle 'q' and 'space' interactively
   * Filter upstream tarball during import
-  * Standards-Version 4.0.0 (no changes needeed)
+  * Standards-Version 4.1.1 (no changes needeed)
   * Add support for GNU/kFreeBSD
 
  -- Yuri D'Elia <wavexx@thregr.org>  Wed, 13 Sep 2017 15:59:19 +0200
