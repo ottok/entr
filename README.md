@@ -14,15 +14,16 @@ Source Installation - BSD, Mac OS, and Linux
 
 To see available build options run `./configure -h`
 
-Binary Installation
--------------------
+Source Installation - Windows Subsystem for Linux
+-------------------------------------------------
 
-The following distributions provide `entr` as part of their main
-package repository:
+    wget http://entrproject.org/patches/entr-3.9-wsl
+    patch -p1 < entr-3.9-wsl
+    ./configure
+    make install
 
-* OpenBSD and FreeBSD
-* Mac OS using Homebrew or MacPorts
-* Debian, Ubuntu, Fedora, and Alpine Linux
+The source patch is the current workaround for deformed [inotify
+support on WSL](https://github.com/Microsoft/BashOnWindows/issues/2507).
 
 Man Page Examples
 -----------------
