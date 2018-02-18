@@ -1,3 +1,12 @@
+entr (4.0-1) unstable; urgency=medium
+
+  * New upstream version 4.0:
+    - Warn instead of error if kqueue fails to register on STDIN
+    - Close STDIN before running the utility when the restart option is used
+    - Restore terminal settings if terminated by a signal
+
+ -- Yuri D'Elia <wavexx@thregr.org>  Sun, 18 Feb 2018 22:34:13 +0100
+
 entr (3.9-1) unstable; urgency=medium
 
   * New upstream version 3.9:
