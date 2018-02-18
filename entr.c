@@ -78,6 +78,7 @@ int dirwatch_opt;
 int restart_opt;
 int postpone_opt;
 int shell_opt;
+struct termios canonical_tty;
 
 /* forwards */
 
@@ -179,10 +180,13 @@ main(int argc, char *argv[]) {
 		close(ttyfd);
 	}
 
+	/* remember terminal settings */
+	tcgetattr(STDIN_FILENO, &canonical_tty);
+
 	/* Use keyboard input as a trigger */
 	EV_SET(&evSet, STDIN_FILENO, EVFILT_READ, EV_ADD, NOTE_LOWAT, 1, NULL);
 	if (xkevent(kq, &evSet, 1, NULL, 0, NULL) == -1)
-		err(1, "failed to register stdin");
+		xwarnx("failed to register stdin");
 
 	watch_loop(kq, argv+argv_index);
 	return 1;
@@ -212,6 +216,7 @@ terminate_utility() {
 
 void
 handle_exit(int sig) {
+	xtcsetattr(0, TCSADRAIN, &canonical_tty);
 	terminate_utility();
 	raise(sig);
 }
@@ -319,9 +324,9 @@ set_options(char *argv[]) {
 			usage();
 		}
 	}
-	if (argv[optind] == '\0')
+	if (argv[optind] == 0)
 		usage();
-	if ((shell_opt == 1) && (argv[optind+1] != '\0'))
+	if ((shell_opt == 1) && (argv[optind+1] != 0))
 		xerrx(1, "-s requires commands to be formatted as a single argument");
 	return optind;
 }
@@ -381,8 +386,10 @@ run_utility(char *argv[]) {
 		if (clear_opt == 1)
 			(void) system("/usr/bin/clear");
 		/* Set process group so subprocess can be signaled */
-		if (restart_opt == 1)
+		if (restart_opt == 1) {
 			setpgid(0, getpid());
+			(void) close(STDIN_FILENO);
+		}
 		/* wait up to 1 seconds for each file to become available */
 		for (i=0; i < 10; i++) {
 			ret = xexecvp(new_argv[0], new_argv);
@@ -485,15 +492,14 @@ watch_loop(int kq, char *argv[]) {
 	int dir_modified = 0;
 	int leading_edge_set = 0;
 	struct stat sb;
-	struct termios canonical_tty, character_tty;
 	char c;
+	struct termios character_tty;
 
 	leading_edge = files[0]; /* default */
 	if (postpone_opt == 0)
 		run_utility(argv);
 
 	/* disabling/restore line buffering and local echo */
-	tcgetattr(STDIN_FILENO, &canonical_tty);
 	character_tty = canonical_tty;
 	character_tty.c_lflag &= ~(ICANON|ECHO);
 
