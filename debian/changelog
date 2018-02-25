@@ -4,6 +4,7 @@ entr (4.0-1) unstable; urgency=medium
     - Warn instead of error if kqueue fails to register on STDIN
     - Close STDIN before running the utility when the restart option is used
     - Restore terminal settings if terminated by a signal
+  * Enable LFS using buildflags
   * Use secure debian/copyright URL
   * Check for upstream signature
   * Migrate the debian packaging to salsa.debian.org (update VCS URLs)
