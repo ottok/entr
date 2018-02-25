@@ -6,8 +6,9 @@ entr (4.0-1) unstable; urgency=medium
     - Restore terminal settings if terminated by a signal
   * Use secure debian/copyright URL
   * Check for upstream signature
+  * Migrate the debian packaging to salsa.debian.org (update VCS URLs)
 
- -- Yuri D'Elia <wavexx@thregr.org>  Sun, 18 Feb 2018 22:34:13 +0100
+ -- Yuri D'Elia <wavexx@thregr.org>  Sun, 25 Feb 2018 23:40:24 +0100
 
 entr (3.9-1) unstable; urgency=medium
 
