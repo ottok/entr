@@ -37,35 +37,36 @@ run lintian:
     - apt-get update && apt-get install lintian -y --no-install-recommends
     - lintian -iI ${WORKING_DIR}/*.changes
 
-run reprotest:
-  stage: test
-  image: genericpipeline/reprotest-docker
-  artifacts:
-    name: "$CI_BUILD_NAME"
-    expire_in: 180 day
-    paths:
-      - ./reprotest.log
-    when: always
-  script:
-    - apt-get update && apt-get install eatmydata -y
-    - eatmydata apt-get build-dep -y .
-    - export DEB_BUILD_OPTIONS=nocheck
-    - eatmydata reprotest . -- null &> reprotest.log
-  tags:
-    - privileged
-
-run piuparts:
-  stage: test
-  image: genericpipeline/piuparts-docker
-  services:
-    - docker:dind
-  script:
-    - CHROOT_PATH=/tmp/debian-unstable
-    - CONTAINER_ID=$(docker run --rm -d debian:unstable sleep infinity)
-    - docker exec ${CONTAINER_ID} bash -c "apt-get update && apt-get install eatmydata -y"
-    - mkdir -p ${CHROOT_PATH}
-    - docker export ${CONTAINER_ID} | tar -C ${CHROOT_PATH} -xf -
-    - mknod -m 666 ${CHROOT_PATH}/dev/urandom c 1 9
-    - piuparts --hard-link -e ${CHROOT_PATH} ${WORKING_DIR}/*.deb
-  tags:
-    - privileged
+# These are disabled because they need a priviledged runner, which we don't have on Salsa.
+#run reprotest:
+#  stage: test
+#  image: genericpipeline/reprotest-docker
+#  artifacts:
+#    name: "$CI_BUILD_NAME"
+#    expire_in: 180 day
+#    paths:
+#      - ./reprotest.log
+#    when: always
+#  script:
+#    - apt-get update && apt-get install eatmydata -y
+#    - eatmydata apt-get build-dep -y .
+#    - export DEB_BUILD_OPTIONS=nocheck
+#    - eatmydata reprotest . -- null &> reprotest.log
+#  tags:
+#    - privileged
+#
+#run piuparts:
+#  stage: test
+#  image: genericpipeline/piuparts-docker
+#  services:
+#    - docker:dind
+#  script:
+#    - CHROOT_PATH=/tmp/debian-unstable
+#    - CONTAINER_ID=$(docker run --rm -d debian:unstable sleep infinity)
+#    - docker exec ${CONTAINER_ID} bash -c "apt-get update && apt-get install eatmydata -y"
+#    - mkdir -p ${CHROOT_PATH}
+#    - docker export ${CONTAINER_ID} | tar -C ${CHROOT_PATH} -xf -
+#    - mknod -m 666 ${CHROOT_PATH}/dev/urandom c 1 9
+#    - piuparts --hard-link -e ${CHROOT_PATH} ${WORKING_DIR}/*.deb
+#  tags:
+#    - privileged
