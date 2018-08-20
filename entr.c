@@ -78,6 +78,7 @@ int dirwatch_opt;
 int restart_opt;
 int postpone_opt;
 int shell_opt;
+int noninteractive_opt;
 struct termios canonical_tty;
 
 /* forwards */
@@ -172,21 +173,23 @@ main(int argc, char *argv[]) {
 	for (i=0; i<n_files; i++)
 		watch_file(kq, files[i]);
 
-	/* Attempt to open a tty so that editors don't complain */
-	ttyfd = xopen(_PATH_TTY, O_RDONLY);
-	if (ttyfd > STDIN_FILENO) {
-		if (dup2(ttyfd, STDIN_FILENO) != 0)
-			xwarnx("can't dup2 to stdin");
-		close(ttyfd);
+	if (!noninteractive_opt) {
+		/* Attempt to open a tty so that editors don't complain */
+		ttyfd = xopen(_PATH_TTY, O_RDONLY);
+		if (ttyfd > STDIN_FILENO) {
+			if (dup2(ttyfd, STDIN_FILENO) != 0)
+				xwarnx("can't dup2 to stdin");
+			close(ttyfd);
+		}
+
+		/* remember terminal settings */
+		tcgetattr(STDIN_FILENO, &canonical_tty);
+
+		/* Use keyboard input as a trigger */
+		EV_SET(&evSet, STDIN_FILENO, EVFILT_READ, EV_ADD, NOTE_LOWAT, 1, NULL);
+		if (xkevent(kq, &evSet, 1, NULL, 0, NULL) == -1)
+			xwarnx("failed to register stdin");
 	}
-
-	/* remember terminal settings */
-	tcgetattr(STDIN_FILENO, &canonical_tty);
-
-	/* Use keyboard input as a trigger */
-	EV_SET(&evSet, STDIN_FILENO, EVFILT_READ, EV_ADD, NOTE_LOWAT, 1, NULL);
-	if (xkevent(kq, &evSet, 1, NULL, 0, NULL) == -1)
-		xwarnx("failed to register stdin");
 
 	watch_loop(kq, argv+argv_index);
 	return 1;
@@ -197,7 +200,7 @@ main(int argc, char *argv[]) {
 void
 usage() {
 	fprintf(stderr, "release: %s\n", RELEASE);
-	fprintf(stderr, "usage: entr [-cdprs] utility [argument [/_] ...] < filenames\n");
+	fprintf(stderr, "usage: entr [-cdnprs] utility [argument [/_] ...] < filenames\n");
 	exit(1);
 }
 
@@ -216,7 +219,8 @@ terminate_utility() {
 
 void
 handle_exit(int sig) {
-	xtcsetattr(0, TCSADRAIN, &canonical_tty);
+	if (!noninteractive_opt)
+		xtcsetattr(0, TCSADRAIN, &canonical_tty);
 	terminate_utility();
 	raise(sig);
 }
@@ -251,6 +255,7 @@ process_input(FILE *file, WatchFile *files[], int max_files) {
 			files[n_files]->is_dir = 0;
 			files[n_files]->file_count = 0;
 			files[n_files]->mode = sb.st_mode;
+			files[n_files]->ino = sb.st_ino;
 			n_files++;
 		}
 		/* also watch the directory if it's not already in the list */
@@ -269,6 +274,7 @@ process_input(FILE *file, WatchFile *files[], int max_files) {
 				files[n_files]->is_dir = 1;
 				files[n_files]->file_count = xlist_dir(path);
 				files[n_files]->mode = sb.st_mode;
+				files[n_files]->ino = sb.st_ino;
 				n_files++;
 			}
 		}
@@ -303,13 +309,16 @@ set_options(char *argv[]) {
 
 	/* read arguments until we reach a command */
 	for (argc=1; argv[argc] != 0 && argv[argc][0] == '-'; argc++);
-	while ((ch = getopt(argc, argv, "cdprs")) != -1) {
+	while ((ch = getopt(argc, argv, "cdnprs")) != -1) {
 		switch (ch) {
 		case 'c':
 			clear_opt = 1;
 			break;
 		case 'd':
 			dirwatch_opt = 1;
+			break;
+		case 'n':
+			noninteractive_opt = 1;
 			break;
 		case 'p':
 			postpone_opt = 1;
@@ -494,17 +503,21 @@ watch_loop(int kq, char *argv[]) {
 	struct stat sb;
 	char c;
 	struct termios character_tty;
+	char *trace_message;
 
 	leading_edge = files[0]; /* default */
 	if (postpone_opt == 0)
 		run_utility(argv);
 
-	/* disabling/restore line buffering and local echo */
-	character_tty = canonical_tty;
-	character_tty.c_lflag &= ~(ICANON|ECHO);
+	if (!noninteractive_opt) {
+		/* disabling/restore line buffering and local echo */
+		character_tty = canonical_tty;
+		character_tty.c_lflag &= ~(ICANON|ECHO);
+	}
 
 main:
-	xtcsetattr(STDIN_FILENO, TCSADRAIN, &character_tty);
+	if (!noninteractive_opt)
+		xtcsetattr(STDIN_FILENO, TCSADRAIN, &character_tty);
 	if ((reopen_only == 1) || (collate_only == 1)) {
 		nev = xkevent(kq, NULL, 0, evList, 32, &evTimeout);
 	}
@@ -521,7 +534,7 @@ main:
 		return;
 
 	for (i=0; i<nev; i++) {
-		if (evList[i].filter == EVFILT_READ) {
+		if (!noninteractive_opt && evList[i].filter == EVFILT_READ) {
 			if (read(STDIN_FILENO, &c, 1) < 1) {
 				EV_SET(&evSet, STDIN_FILENO, EVFILT_READ,
 				    EV_DELETE, NOTE_LOWAT, 0, NULL);
@@ -537,11 +550,13 @@ main:
 		}
 		if (evList[i].filter != EVFILT_VNODE)
 			continue;
+
 		file = (WatchFile *)evList[i].udata;
 		if (file->is_dir == 1)
 			dir_modified += compare_dir_contents(file);
 	}
-	xtcsetattr(0, TCSADRAIN, &canonical_tty);
+	if (!noninteractive_opt)
+		xtcsetattr(0, TCSADRAIN, &canonical_tty);
 
 	collate_only = 0;
 	for (i=0; i<nev; i++) {
@@ -566,11 +581,14 @@ main:
 	}
 
 	for (i=0; i<nev && reopen_only == 0; i++) {
+		trace_message = "";
+
 		if (evList[i].filter != EVFILT_VNODE)
 			continue;
 		file = (WatchFile *)evList[i].udata;
 		if ((file->is_dir == 1) && (dir_modified == 0))
 			continue;
+
 		if (evList[i].fflags & NOTE_DELETE ||
 		    evList[i].fflags & NOTE_WRITE  ||
 		    evList[i].fflags & NOTE_RENAME ||
@@ -579,18 +597,33 @@ main:
 				continue;
 			do_exec = 1;
 		}
+
 		if (evList[i].fflags & NOTE_ATTRIB &&
-		    S_ISREG(file->mode) != 0 &&
-		    xstat(file->fn, &sb) == 0 &&
-		    file->mode != sb.st_mode) {
-			do_exec = 1;
-			file->mode = sb.st_mode;
+		    S_ISREG(file->mode) != 0 && xstat(file->fn, &sb) == 0) {
+			if (file->mode != sb.st_mode) {
+			    do_exec = 1;
+			    file->mode = sb.st_mode;
+			    trace_message = "mode changed";
+			}
+			/* Possible on Linux when a running binary is unlinked */
+			if (file->ino != sb.st_ino) {
+			    do_exec = 1;
+			    file->ino = sb.st_ino;
+			    trace_message = "inode changed";
+			}
 		}
 		else if (evList[i].fflags & NOTE_ATTRIB)
 			continue;
+
 		if ((file->is_dir == 0) && (leading_edge_set == 0)) {
 			leading_edge = file;
 			leading_edge_set = 1;
+		}
+
+		if (getenv("EV_TRACE")) {
+			fprintf(stderr, "EVFILT_VNODE: %d/%d: "
+			    "fflags: 0x%x %s\n", i, nev, evList[i].fflags,
+			    trace_message);
 		}
 	}
 

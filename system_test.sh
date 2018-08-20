@@ -93,6 +93,14 @@ try "spacebar triggers utility"
 
 # file system tests
 
+try "exec a command in non-intertive mode"
+	setup
+	ls $tmp/file* | ./entr -n tty >$tmp/exec.out &
+	bgpid=$! ; zz
+	kill -INT $bgpid
+	wait $bgpid || assert "$?" "130"
+	assert "$(cat $tmp/exec.out)" "not a tty"
+
 try "exec a command as a background task and ensure stdin is closed"
 	setup
 	ls $tmp/file* | ./entr -r sh -c 'test -t 0; echo $?; kill $$' >$tmp/exec.out &
@@ -286,6 +294,18 @@ try "exec a command if a file is made executable"
 	kill -INT $bgpid
 	wait $bgpid || assert "$?" "130"
 	assert "$(cat $tmp/exec.out)" "$tmp/file2"
+
+try "ensure watches operate on a running executable"
+	setup
+	cp /bin/sleep $tmp/
+	ls $tmp/sleep | ./entr -rs "echo 'vroom'; $tmp/sleep 30" \
+	    > $tmp/exec.out 2> /dev/null &
+	bgpid=$! ; zz
+	cp -f /bin/sleep $tmp/ ; zz
+	kill -INT $bgpid
+	wait $bgpid || assert "$?" "130"
+	rm -f $tmp/sleep
+	assert "$(cat $tmp/exec.out)" "$(printf 'vroom\nvroom\n')"
 
 try "exec a command using the first file to change"
 	setup
