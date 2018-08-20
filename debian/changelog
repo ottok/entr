@@ -1,3 +1,19 @@
+entr (4.1-1) UNRELEASED; urgency=medium
+
+  [ Otto Kekäläinen ]
+  * Add .gitlab-ci.yml copied from Salsa-CI team's example
+  * Add very rudimentary autopkgtests
+
+  [ Yuri D'Elia ]
+  * New upstream version 4.1:
+    - New '-n' non-interactive option disables keyboard input
+    - EV_TRACE environment variable enables file system event tracing
+    - Track changes to the inode number as a workaround for missing delete
+      events on the Linux kernel
+  * Refresh kfreebsd-support.patch
+
+ -- Yuri D'Elia <wavexx@thregr.org>  Mon, 20 Aug 2018 13:29:09 +0200
+
 entr (4.0-1) unstable; urgency=medium
 
   * New upstream version 4.0:
