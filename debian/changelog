@@ -1,4 +1,4 @@
-entr (4.1-1) UNRELEASED; urgency=medium
+entr (4.1-1) unstable; urgency=low
 
   [ Otto Kekäläinen ]
   * Add .gitlab-ci.yml copied from Salsa-CI team's example
@@ -12,7 +12,7 @@ entr (4.1-1) UNRELEASED; urgency=medium
       events on the Linux kernel
   * Refresh kfreebsd-support.patch
 
- -- Yuri D'Elia <wavexx@thregr.org>  Mon, 20 Aug 2018 13:29:09 +0200
+ -- Otto Kekäläinen <otto@debian.org>  Tue, 21 Aug 2018 14:51:44 +0300
 
 entr (4.0-1) unstable; urgency=medium
 
