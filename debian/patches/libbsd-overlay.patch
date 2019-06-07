@@ -5,9 +5,6 @@ Author: Yuri D'Elia <wavexx@thregr.org>
 Forwarded: not-needed
 Updated: 2017-09-13
 
-diff --git a/Makefile.debian b/Makefile.debian
-new file mode 100644
-index 0000000..1697026
 --- /dev/null
 +++ b/Makefile.debian
 @@ -0,0 +1,12 @@
@@ -23,12 +20,11 @@ index 0000000..1697026
 +MANPREFIX ?= ${PREFIX}/share/man
 +
 +include Makefile.bsd
-diff --git a/Makefile.linux b/Makefile.linux
-index c8f7c3b..8bcfde8 100644
 --- a/Makefile.linux
 +++ b/Makefile.linux
-@@ -1,2 +1,3 @@
+@@ -1,4 +1,5 @@
  CPPFLAGS += -D_GNU_SOURCE -D_LINUX_PORT -Imissing
 +LDFLAGS += $(shell pkg-config --libs libbsd-ctor)
  MANPREFIX ?= ${PREFIX}/share/man
-
+ EXTRA_SRC = missing/strlcpy.c missing/kqueue_inotify.c
+ 
