@@ -88,14 +88,18 @@ Control of the TTY is not transferred the child process.
 Evaluate the first argument using the interpreter specified by the
 .Ev SHELL
 environment variable.
-When this flag is set, the name of the shell and exit code is printed after each
+If stdout is a TTY, the name of the shell and exit code is printed after each
 invocation.
 .El
 .Pp
 The first argument named
 .Ar /_
 is replaced with the absolute path of the first file to trigger an event.
-If the restart option is used the first file under watch is treated as the default.
+The first file under watch is used as the default.
+If the
+.Fl s
+option is used, the name of the first file to triggler an event can be read from
+.Va $0 .
 .Sh COMMANDS
 .Nm
 listens for keyboard input and responds to the following commands:
