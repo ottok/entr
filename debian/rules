@@ -24,6 +24,3 @@ override_dh_auto_configure:
 
 override_dh_auto_install:
 	dh_auto_install -- PREFIX=/usr
-
-override_dh_installchangelogs:
-	dh_installchangelogs NEWS
