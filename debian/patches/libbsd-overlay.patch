@@ -3,28 +3,16 @@ Description: Override upstream copy and use libbsd
   instead on our supported targets.
 Author: Yuri D'Elia <wavexx@thregr.org>
 Forwarded: not-needed
-Updated: 2017-09-13
+Updated: 2019-10-24
 
---- /dev/null
-+++ b/Makefile.debian
-@@ -0,0 +1,12 @@
-+# `entr` provides a built-in compability layer for Linux. To use compatibility
-+# libraries instead insteall libkqueue and libbsd
-+#
-+# sudo apt-get install libkqueue-dev libbsd-dev pkg-config
-+# make test -f Makefile.linux-lbsd
-+# sudo make install
-+
-+CFLAGS += -D_GNU_SOURCE -I/usr/include/kqueue $(shell pkg-config --cflags libbsd-overlay)
-+LDFLAGS += -lpthread -lkqueue $(shell pkg-config --libs libbsd-ctor)
-+MANPREFIX ?= ${PREFIX}/share/man
-+
-+include Makefile.bsd
 --- a/Makefile.linux
 +++ b/Makefile.linux
-@@ -1,4 +1,5 @@
- CPPFLAGS += -D_GNU_SOURCE -D_LINUX_PORT -Imissing
-+LDFLAGS += $(shell pkg-config --libs libbsd-ctor)
+@@ -1,5 +1,6 @@
+-CPPFLAGS += -D_GNU_SOURCE -D_LINUX_PORT -Imissing
++CFLAGS += -D_GNU_SOURCE $(shell pkg-config --cflags libbsd-overlay) -Imissing
++LDFLAGS += -lpthread $(shell pkg-config --libs libbsd-ctor)
  MANPREFIX ?= ${PREFIX}/share/man
- EXTRA_SRC = missing/strlcpy.c missing/kqueue_inotify.c
+-EXTRA_SRC = missing/strlcpy.c missing/kqueue_inotify.c
++EXTRA_SRC = missing/kqueue_inotify.c
  
+ include Makefile.bsd
