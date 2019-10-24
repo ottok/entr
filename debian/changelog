@@ -1,8 +1,8 @@
-entr (4.2-2) UNRELEASED; urgency=medium
+entr (4.3-1) UNRELEASED; urgency=medium
 
-  * Open new changelog entry. This will be replaced by 'gbp dch'.
+  * New upstream version 4.3
 
- -- Otto Kekäläinen <otto@debian.org>  Mon, 26 Aug 2019 10:15:25 +0200
+ -- Yuri D'Elia <wavexx@thregr.org>  Thu, 24 Oct 2019 17:34:46 +0200
 
 entr (4.2-1) unstable; urgency=low
 
