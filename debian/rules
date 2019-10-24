@@ -7,12 +7,20 @@
 # Hardening
 export DEB_BUILD_MAINT_OPTIONS=hardening=+all future=+lfs
 
+# Reimplement ./configure without relying on uname.
+include /usr/share/dpkg/architecture.mk
+ifeq (,$(filter linux kfreebsd,$(DEB_HOST_ARCH_OS)))
+UPSTREAM_MAKEFILE=Makefile.bsd
+else
+UPSTREAM_MAKEFILE=Makefile.$(DEB_HOST_ARCH_OS)
+endif
+
 # Rules
 %:
 	dh $@ --parallel
 
 override_dh_auto_configure:
-	./configure
+	ln -sf $(UPSTREAM_MAKEFILE) Makefile
 
 override_dh_auto_install:
 	dh_auto_install -- PREFIX=/usr

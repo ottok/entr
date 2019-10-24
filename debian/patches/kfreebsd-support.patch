@@ -3,19 +3,20 @@ Description: Support the hybrid GNU/kFreeBSD
   which supports kqueue natively but still requires the libbsd overlay.
 Author: Yuri D'Elia <wavexx@thregr.org>
 Forwarded: not-needed
-Updated: 2018-08-20
+Updated: 2019-10-24
 
 --- /dev/null
 +++ b/Makefile.kfreebsd
-@@ -0,0 +1,5 @@
-+CFLAGS += -D_GNU_SOURCE $(shell pkg-config --cflags libbsd-overlay)
-+LDFLAGS += $(shell pkg-config --libs libbsd-overlay)
+@@ -0,0 +1,6 @@
++PKG_CONFIG ?= pkg-config
++CFLAGS += -D_GNU_SOURCE $(shell $(PKG_CONFIG) --cflags libbsd-overlay)
++LDFLAGS += $(shell $(PKG_CONFIG) --libs libbsd-overlay)
 +MANPREFIX ?= ${PREFIX}/share/man
 +
 +include Makefile.bsd
 --- a/configure
 +++ b/configure
-@@ -8,6 +8,7 @@ copy_mk() {
+@@ -8,6 +8,7 @@
  case `uname` in
      Darwin) copy_mk macos ;;
      Linux)  copy_mk linux ;;
