@@ -17,7 +17,7 @@ endif
 
 # Rules
 %:
-	dh $@ --parallel
+	dh $@ --buildsystem=makefile
 
 override_dh_auto_configure:
 	ln -sf $(UPSTREAM_MAKEFILE) Makefile
