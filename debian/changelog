@@ -1,8 +1,15 @@
-entr (4.3-1) UNRELEASED; urgency=medium
+entr (4.3-1) unstable; urgency=low
 
+  [ Yuri D'Elia ]
   * New upstream version 4.3
+  * Update libbsd-overlay.patch to use the bundled kqueue wrapper
+  * Allow overriding pkg-config and DEB_HOST_ARCH_OS (Closes: #914660)
+  * Do not require root for building
+  * Switch to debhelper 12
+  * No longer alias NEWS as the upstream changelog
+  * Update Standards-Version to 4.4.1
 
- -- Yuri D'Elia <wavexx@thregr.org>  Thu, 24 Oct 2019 17:34:46 +0200
+ -- Otto Kekäläinen <otto@debian.org>  Sat, 26 Oct 2019 19:09:56 +0300
 
 entr (4.2-1) unstable; urgency=low
 
