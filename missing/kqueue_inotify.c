@@ -53,6 +53,25 @@ file_by_descriptor(int wd) {
 	return NULL; /* lookup failed */
 }
 
+int
+fs_sysctl(const int name) {
+	FILE *file;
+	char line[8];
+	int value = 0;
+
+	switch(name) {
+	case INOTIFY_MAX_USER_WATCHES:
+		file = fopen("/proc/sys/fs/inotify/max_user_watches", "r");
+
+		if (file == NULL || fgets(line, sizeof(line), file) == NULL)
+		    err(1, "max_user_watches");
+		value = atoi(line);
+		fclose(file);
+		break;
+	}
+	return value;
+}
+
 /* interface */
 
 #define EVENT_SIZE (sizeof (struct inotify_event))
@@ -60,11 +79,17 @@ file_by_descriptor(int wd) {
 #define IN_ALL IN_CLOSE_WRITE|IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB|IN_CREATE
 
 /*
- * Conveniently inotify and kqueue ids both have the type `int`
+ * inotify and kqueue ids both have the type `int`
  */
 int
 kqueue(void) {
-	return inotify_init();
+	static int inotify_queue;
+
+	if (inotify_queue == 0)
+		inotify_queue = inotify_init();
+	if (getenv("ENTR_INOTIFY_WORKAROUND"))
+		warnx("broken inotify workaround enabled");
+	return inotify_queue;
 }
 
 /*
@@ -115,8 +140,10 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 				file->fd = -1; /* invalidate */
 			}
 			else if (kev->flags & EV_ADD) {
-				wd = inotify_add_watch(kq /* ifd */, file->fn,
-				    IN_ALL);
+				if (getenv("ENTR_INOTIFY_WORKAROUND"))
+					wd = inotify_add_watch(kq, file->fn, IN_ALL|IN_MODIFY);
+				else
+					wd = inotify_add_watch(kq, file->fn, IN_ALL);
 				if (wd < 0)
 					return -1;
 				close(file->fd);
@@ -162,6 +189,8 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 				if (iev->mask & IN_CREATE)      fflags |= NOTE_WRITE;
 				if (iev->mask & IN_MOVE_SELF)   fflags |= NOTE_RENAME;
 				if (iev->mask & IN_ATTRIB)      fflags |= NOTE_ATTRIB;
+				if (getenv("ENTR_INOTIFY_WORKAROUND"))
+					if (iev->mask & IN_MODIFY)  fflags |= NOTE_WRITE;
 				if (fflags == 0) continue;
 
 				/* merge events if we're not acting on a new file descriptor */
@@ -196,6 +225,6 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 	}
 	while ((poll(pfd, nfds, 50) > 0));
 	
-	(void) free(pfd);
+	free(pfd);
 	return n;
 }
