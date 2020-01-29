@@ -144,11 +144,15 @@ main(int argc, char *argv[]) {
 	if (sigemptyset(&act.sa_mask) & (sigaction(SIGTERM, &act, NULL) != 0))
 		err(1, "Failed to set SIGTERM handler");
 
-	/* raise soft limit */
 	getrlimit(RLIMIT_NOFILE, &rl);
+#if defined(_LINUX_PORT)
+	rl.rlim_cur = (rlim_t)fs_sysctl(INOTIFY_MAX_USER_WATCHES);
+#else
+	/* raise soft limit */
 	rl.rlim_cur = min((rlim_t)sysconf(_SC_OPEN_MAX), rl.rlim_max);
 	if (setrlimit(RLIMIT_NOFILE, &rl) != 0)
 		err(1, "setrlimit cannot set rlim_cur to %d", (int)rl.rlim_cur);
+#endif
 
 	/* prevent interactive utilities from paging output */
 	setenv("PAGER", "/bin/cat", 0);
@@ -368,7 +372,7 @@ run_utility(char *argv[]) {
 		argc = 4;
 		arg_buf = malloc(ARG_MAX);
 		new_argv = calloc(argc+1, sizeof(char *));
-		(void) xrealpath(leading_edge->fn, arg_buf);
+		xrealpath(leading_edge->fn, arg_buf);
 		new_argv[0] = getenv("SHELL");
 		new_argv[1] = "-c";
 		new_argv[2] = argv[0];
@@ -399,11 +403,11 @@ run_utility(char *argv[]) {
 
 	if (pid == 0) {
 		if (clear_opt == 1)
-			(void) system("/usr/bin/clear");
+			system("/usr/bin/clear");
 		/* Set process group so subprocess can be signaled */
 		if (restart_opt == 1) {
 			setpgid(0, getpid());
-			(void) close(STDIN_FILENO);
+			close(STDIN_FILENO);
 		}
 		/* wait up to 1 seconds for each file to become available */
 		for (i=0; i < 10; i++) {
@@ -576,8 +580,11 @@ main:
 			    NOTE_ALL, 0, file);
 			if (xkevent(kq, &evSet, 1, NULL, 0, NULL) == -1)
 				err(1, "failed to remove VNODE event");
+#if !defined(_LINUX_PORT)
+			/* free file descriptor no longer monitored by kqueue */
 			if ((file->fd != -1) && (close(file->fd) == -1))
 				err(1, "unable to close file");
+#endif
 			watch_file(kq, file);
 			collate_only = 1;
 		}
