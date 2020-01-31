@@ -1,8 +1,11 @@
-entr (4.4-1) UNRELEASED; urgency=medium
+entr (4.4-1) unstable; urgency=medium
 
+  [ Yuri D'Elia ]
   * New upstream release 4.4
+  * Update libbsd-overlay.patch
+  * Update Standards-Version to 4.5.0 (no changes needed)
 
- -- Yuri D'Elia <wavexx@thregr.org>  Wed, 29 Jan 2020 11:03:33 +0100
+ -- Otto Kekäläinen <otto@debian.org>  Fri, 31 Jan 2020 06:47:42 +0200
 
 entr (4.3-1) unstable; urgency=low
 
