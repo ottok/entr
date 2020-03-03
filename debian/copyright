@@ -12,7 +12,7 @@ License: ISC
 
 Files: missing/fmemopen.c
 Copyright: 2011, Martin Pieuchot <mpi@openbsd.org>
-	   2009, Ted Unangst
+           2009, Ted Unangst
 License: ISC
 
 Files: missing/sys/event.h
