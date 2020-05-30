@@ -1,17 +1,14 @@
-entr (4.5-1) UNRELEASED; urgency=medium
+entr (4.5-1) unstable; urgency=medium
 
   [ Debian Janitor ]
   * debian/copyright: use spaces rather than tabs to start continuation
     lines.
 
-  [ Otto Kekäläinen ]
-  * Prefer salsa-ci.yml naming over gitlab-ci.yml since we inherit Salsa-CI
-  * Apply wrap-and-sort -a
-
   [ Yuri D'Elia ]
   * New upstream version 4.5 (Closes: #957173)
+  * Switch to debhelper 13
 
- -- Yuri D'Elia <wavexx@thregr.org>  Fri, 22 May 2020 17:03:04 +0200
+ -- Otto Kekäläinen <otto@debian.org>  Sat, 30 May 2020 23:01:51 +0300
 
 entr (4.4-1) unstable; urgency=medium
 
