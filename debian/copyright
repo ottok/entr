@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: entr
-Source: http://entrproject.org/
+Source: https://eradman.com/entrproject/
 
 Files: *
 Copyright: 2012, Eric Radman <ericshane@eradman.com>
