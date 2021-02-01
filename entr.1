@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd April 17, 2020
+.Dd January 02, 2021
 .Dt ENTR 1
 .Os
 .Sh NAME
@@ -21,7 +21,7 @@
 .Nd run arbitrary commands when files change
 .Sh SYNOPSIS
 .Nm
-.Op Fl acdprs
+.Op Fl acdnprsz
 .Ar utility
 .Op Ar argument /_ ...
 .Sh DESCRIPTION
@@ -141,19 +141,20 @@ is undefined,
 will use
 .Pa /bin/sh .
 .Sh EXIT STATUS
-The
+If the
+.Fl z
+flag is set and the
+.Ar utility
+is successfully executed, the status of the child process is
+returned.
+Otherwise
 .Nm
-utility exits with one of the following values:
+normally returns one of the following values:
 .Pp
 .Bl -tag -width Ds -offset indent -compact
 .It 0
 Normal termination after receiving
 .Dv SIGINT
-or the
-.Fl z
-flag was set and the
-.Ar utility
-was executed successfully
 .It 1
 No regular files were provided as input or an error occurred
 .It 2
@@ -174,7 +175,7 @@ Clear the screen and run a query after the SQL script is updated:
 .Pp
 Rebuild project if a source file is modified or added to the src/ directory:
 .Pp
-.Dl $ while true; do ls src/*.rb | entr -d make; done
+.Dl $ while sleep 0.1; do ls src/*.rb | entr -d make; done
 .Pp
 Auto-reload a web server, or terminate if the server exits
 .Pp

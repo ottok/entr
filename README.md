@@ -44,7 +44,7 @@ Clear the screen and run a query after the SQL script is updated:
 
 Rebuild project if a source file is modified or added to the src/ directory:
 
-    $ while true; do find . -name 'src/*.rb' | entr -d make; done
+    $ while sleep 0.1; do find src -name '*.rb' | entr -d make; done
 
 Self-terminate after a file is updated
 
@@ -54,8 +54,7 @@ News
 ----
 
 A release history as well as features in the upcoming release are covered in the
-[NEWS] file.
+[NEWS](NEWS) file.
 
 [kqueue(2)]: http://man.openbsd.org/kqueue.2
 [inotify(7)]: http://man.he.net/?section=all&topic=inotify
-[NEWS]: https://raw.githubusercontent.com/eradman/entr/master/NEWS
