@@ -72,6 +72,7 @@ extern int optind;
 WatchFile **files;
 WatchFile *leading_edge;
 int child_pid;
+int child_exitstatus;
 int terminating;
 
 int aggressive_opt;
@@ -105,6 +106,7 @@ static void watch_loop(int, char *[]);
 int
 main(int argc, char *argv[]) {
 	struct rlimit rl;
+	rlim_t max_watches;
 	int kq;
 	struct sigaction act;
 	int ttyfd;
@@ -147,6 +149,8 @@ main(int argc, char *argv[]) {
 		err(1, "Failed to set SIGINT handler");
 	if (sigaction(SIGTERM, &act, NULL) != 0)
 		err(1, "Failed to set SIGTERM handler");
+	if (sigaction(SIGHUP, &act, NULL) != 0)
+		err(1, "Failed to set SIGHUP handler");
 
 	/* notification used to combine the one-shot and restart options */
 	act.sa_flags = 0;
@@ -155,14 +159,20 @@ main(int argc, char *argv[]) {
 		err(1, "Failed to set SIGCHLD handler");
 
 	getrlimit(RLIMIT_NOFILE, &rl);
+
 #if defined(_LINUX_PORT)
-	rl.rlim_cur = (rlim_t)fs_sysctl(INOTIFY_MAX_USER_WATCHES);
-#else
+	max_watches = (rlim_t)fs_sysctl(INOTIFY_MAX_USER_WATCHES);
+	if(max_watches > 0) {
+		rl.rlim_cur = max_watches;
+		goto rlim_set;
+	}
+#endif
 	/* raise soft limit */
 	rl.rlim_cur = min((rlim_t)sysconf(_SC_OPEN_MAX), rl.rlim_max);
 	if (setrlimit(RLIMIT_NOFILE, &rl) != 0)
 		err(1, "setrlimit cannot set rlim_cur to %d", (int)rl.rlim_cur);
-#endif
+
+rlim_set:
 
 	/* prevent interactive utilities from paging output */
 	setenv("PAGER", "/bin/cat", 0);
@@ -218,7 +228,7 @@ main(int argc, char *argv[]) {
 void
 usage() {
 	fprintf(stderr, "release: %s\n", RELEASE);
-	fprintf(stderr, "usage: entr [-acdnprs] utility [argument [/_] ...] < filenames\n");
+	fprintf(stderr, "usage: entr [-acdnprsz] utility [argument [/_] ...] < filenames\n");
 	exit(1);
 }
 
@@ -230,7 +240,8 @@ terminate_utility() {
 
 	if (child_pid > 0) {
 		xkillpg(child_pid, SIGTERM);
-		xwaitpid(child_pid, &status, 0);
+		if (xwaitpid(child_pid, &status, 0) > 0)
+			child_exitstatus = WEXITSTATUS(status);
 		child_pid = 0;
 	}
 
@@ -244,7 +255,7 @@ handle_exit(int sig) {
 	if (!noninteractive_opt)
 		xtcsetattr(0, TCSADRAIN, &canonical_tty);
 	terminate_utility();
-	if (sig == SIGINT)
+	if ((sig == SIGINT || sig == SIGHUP))
 	    exit(0);
 	else
 	    raise(sig);
@@ -254,16 +265,14 @@ void
 proc_exit(int sig) {
 	int status;
 
-	xwaitpid(child_pid, &status, 0);
+	if (wait(&status) > 0)
+		child_exitstatus = WEXITSTATUS(status);
 	if ((oneshot_opt == 1) && (terminating == 0)) {
 		if ((shell_opt == 1) && (restart_opt == 0)) {
 			fprintf(stdout, "%s returned exit code %d\n",
-			    basename(getenv("SHELL")), WEXITSTATUS(status));
+			    basename(getenv("SHELL")), child_exitstatus);
 		}
-		if (WEXITSTATUS(status) == 99)
-			exit(1);
-		else
-			exit(0);
+		exit(child_exitstatus);
 	}
 }
 
@@ -460,18 +469,19 @@ run_utility(char *argv[]) {
 			else break;
 		}
 		if (ret != 0)
-			err(99, "exec %s", new_argv[0]);
+			err(1, "exec %s", new_argv[0]);
 	}
 	child_pid = pid;
 
 	if (restart_opt == 0) {
-		xwaitpid(pid, &status, 0);
+		if (xwaitpid(pid, &status, 0) > 0)
+			child_exitstatus = WEXITSTATUS(status);
 		if (shell_opt == 1)
 			fprintf(stdout, "%s returned exit code %d\n",
-			    basename(getenv("SHELL")), WEXITSTATUS(status));
+			    basename(getenv("SHELL")), child_exitstatus);
 
 		if (oneshot_opt == 1)
-			exit(0);
+			exit(child_exitstatus);
 	}
 
 	xfree(arg_buf);

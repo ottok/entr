@@ -93,7 +93,7 @@ try "spacebar triggers utility"
 
 # file system tests
 
-try "exec a command an exit using one-shot option"
+try "exec a command using one-shot option"
 	setup
 	ls $tmp/file* | ./entr -zp cat $tmp/file2 >$tmp/exec.out 2>$tmp/exec.err &
 	bgpid=$! ; zz
@@ -102,11 +102,17 @@ try "exec a command an exit using one-shot option"
 	assert "$(cat $tmp/exec.err)" ""
 	assert "$(head -n1 $tmp/exec.out)" "$(printf '456\n')"
 
-try "fail to exec an command using one-shot option"
+try "fail to exec a command using one-shot option"
 	setup
 	ls $tmp/file* | ./entr -z /usr/bin/false_X >$tmp/exec.out 2>$tmp/exec.err &
 	bgpid=$! ; zz
 	wait $bgpid || assert "$?" "1"
+
+try "exec a command using one-shot option exit code from child"
+	setup
+	ls $tmp/file* | ./entr -z sh -c 'exit 4' &
+	bgpid=$! ; zz
+	wait $bgpid || assert "$?" "4"
 
 try "restart a server when a file is modified using one-shot option"
 	setup
@@ -292,6 +298,19 @@ try "ensure that all shell subprocesses are terminated in restart mode"
 	ls $tmp/file2 | ./entr -r sh -c "$tmp/go.sh" 2> /dev/null > $tmp/exec.out &
 	bgpid=$! ; zz
 	kill -INT $bgpid ; zz
+	assert "$(cat $tmp/exec.out)" "$(printf 'running\ncaught signal')"
+
+try "ensure that all shell subprocesses are terminated when terminal is closed"
+	setup
+	cat <<-SCRIPT > $tmp/go.sh
+	#!/bin/sh
+	trap 'echo "caught signal"; exit' TERM
+	echo "running"; sleep 10
+	SCRIPT
+	chmod +x $tmp/go.sh
+	ls $tmp/file2 | ./entr -r sh -c "$tmp/go.sh" 2> /dev/null > $tmp/exec.out &
+	bgpid=$! ; zz
+	kill -HUP $bgpid ; zz
 	assert "$(cat $tmp/exec.out)" "$(printf 'running\ncaught signal')"
 
 try "exit with no action when restart and dirwatch flags are combined"
