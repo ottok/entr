@@ -1,13 +1,15 @@
-entr (4.7-1) UNRELEASED; urgency=medium
+entr (4.7-1) unstable; urgency=medium
 
+  [ Yuri D'Elia ]
   * New upstream version 4.7:
     - Use system file descriptor limits when max_user_watches is not
       accessible
     - Return the exit status of the child process when the '-z' option is used
     - Handle SIGHUP so child process are terminated when a terminal is closed
     - More accurately return shell exit code using '-s' option
+  * Update Standards-Version to 4.5.1 (no changes needed)
 
- -- Yuri D'Elia <wavexx@thregr.org>  Mon, 01 Feb 2021 23:57:18 +0100
+ -- Otto Kekäläinen <otto@debian.org>  Tue, 02 Feb 2021 14:22:32 +0200
 
 entr (4.6-1) unstable; urgency=medium
 
