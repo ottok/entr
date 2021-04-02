@@ -1,5 +1,12 @@
 = Release History
 
+== 4.8: February 26, 2021
+
+ - Set a maximum of 2^19 watches to guard against absurd file open limits on
+   MacOS
+ - Use control sequences to clear the display and specify '-c' twice to erase
+   the scrollback buffer
+
 == 4.7: January 29, 2021
 
  - Use system file descriptor limits when max_user_watches is not accessible
