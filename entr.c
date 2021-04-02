@@ -114,6 +114,7 @@ main(int argc, char *argv[]) {
 	int n_files;
 	int i;
 	struct kevent evSet;
+	long open_max;
 
 	if ((*test_runner_main))
 		return(test_runner_main(argc, argv));
@@ -164,13 +165,20 @@ main(int argc, char *argv[]) {
 	max_watches = (rlim_t)fs_sysctl(INOTIFY_MAX_USER_WATCHES);
 	if(max_watches > 0) {
 		rl.rlim_cur = max_watches;
+		open_max = max_watches;
 		goto rlim_set;
 	}
 #endif
 	/* raise soft limit */
-	rl.rlim_cur = min((rlim_t)sysconf(_SC_OPEN_MAX), rl.rlim_max);
+	open_max = min(sysconf(_SC_OPEN_MAX), (long)rl.rlim_max);
+	if (open_max == -1)
+		err(1, "_SC_OPEN_MAX");
+
+	open_max = min(524288, open_max);  /* guard against unrealistic replies */
+
+	rl.rlim_cur = (rlim_t)open_max;
 	if (setrlimit(RLIMIT_NOFILE, &rl) != 0)
-		err(1, "setrlimit cannot set rlim_cur to %d", (int)rl.rlim_cur);
+		err(1, "setrlimit cannot set rlim_cur to %ld", open_max);
 
 rlim_set:
 
@@ -181,7 +189,7 @@ rlim_set:
 	setenv("SHELL", "/bin/sh", 0);
 
 	/* sequential scan may depend on a 0 at the end */
-	files = calloc(rl.rlim_cur+1, sizeof(WatchFile *));
+	files = calloc(open_max+1, sizeof(WatchFile *));
 
 	if ((kq = kqueue()) == -1)
 		err(1, "cannot create kqueue");
@@ -191,13 +199,13 @@ rlim_set:
 		usage();
 
 	/* read input and populate watch list, skipping non-regular files */
-	n_files = process_input(stdin, files, rl.rlim_cur);
+	n_files = process_input(stdin, files, open_max);
 	if (n_files == 0)
 		errx(1, "No regular files to watch");
 	if (n_files == -1)
 		errx(1, "Too many files listed; the hard limit for your login"
-		    " class is %d. Please consult"
-		    " http://eradman.com/entrproject/limits.html", (int)rl.rlim_cur);
+		    " class is %ld. Please consult"
+		    " http://eradman.com/entrproject/limits.html", open_max);
 	for (i=0; i<n_files; i++)
 		watch_file(kq, files[i]);
 
@@ -365,7 +373,7 @@ set_options(char *argv[]) {
 			aggressive_opt = 1;
 			break;
 		case 'c':
-			clear_opt = 1;
+			clear_opt = clear_opt ? 2 : 1;
 			break;
 		case 'd':
 			dirwatch_opt = 1;
@@ -454,8 +462,16 @@ run_utility(char *argv[]) {
 		err(1, "can't fork");
 
 	if (pid == 0) {
+		/* 2J - erase the entire display
+		 * 3J - clear scrollback buffer
+		 * H  - set cursor position to the default
+		 */
 		if (clear_opt == 1)
-			system("/usr/bin/clear");
+			printf("\033[2J\033[H");
+		if (clear_opt == 2)
+			printf("\033[2J\033[3J\033[H");
+		fflush(stdout);
+
 		/* Set process group so subprocess can be signaled */
 		if (restart_opt == 1) {
 			setpgid(0, getpid());
