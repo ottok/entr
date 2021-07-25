@@ -1,10 +1,11 @@
-entr (4.8-1) UNRELEASED; urgency=medium
+entr (4.8-1) unstable; urgency=medium
 
+  [ Yuri D'Elia ]
   * New upstream version 4.8:
     - Use control sequences to clear the display and specify '-c' twice to erase
       the scrollback buffer
 
- -- Yuri D'Elia <wavexx@thregr.org>  Fri, 02 Apr 2021 17:54:54 +0200
+ -- Otto Kekäläinen <otto@debian.org>  Sun, 25 Jul 2021 16:38:25 -0700
 
 entr (4.7-1) unstable; urgency=medium
 
