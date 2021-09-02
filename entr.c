@@ -106,7 +106,6 @@ static void watch_loop(int, char *[]);
 int
 main(int argc, char *argv[]) {
 	struct rlimit rl;
-	rlim_t max_watches;
 	int kq;
 	struct sigaction act;
 	int ttyfd;
@@ -114,7 +113,7 @@ main(int argc, char *argv[]) {
 	int n_files;
 	int i;
 	struct kevent evSet;
-	long open_max;
+	unsigned open_max;
 
 	if ((*test_runner_main))
 		return(test_runner_main(argc, argv));
@@ -159,28 +158,29 @@ main(int argc, char *argv[]) {
 	if (sigaction(SIGCHLD, &act, NULL) != 0)
 		err(1, "Failed to set SIGCHLD handler");
 
-	getrlimit(RLIMIT_NOFILE, &rl);
-
 #if defined(_LINUX_PORT)
-	max_watches = (rlim_t)fs_sysctl(INOTIFY_MAX_USER_WATCHES);
-	if(max_watches > 0) {
-		rl.rlim_cur = max_watches;
-		open_max = max_watches;
-		goto rlim_set;
-	}
-#endif
-	/* raise soft limit */
-	open_max = min(sysconf(_SC_OPEN_MAX), (long)rl.rlim_max);
-	if (open_max == -1)
-		err(1, "_SC_OPEN_MAX");
-
-	open_max = min(524288, open_max);  /* guard against unrealistic replies */
-
+	/* attempt to read inotify limits */
+	open_max = (unsigned)fs_sysctl(INOTIFY_MAX_USER_WATCHES);
+	if (open_max == 0)
+		open_max = 65536;
+#elif defined(_MACOS_PORT)
+	if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
+		err(1, "getrlimit");
+	/* guard against unrealistic replies */
+	open_max = min(65536, (unsigned)rl.rlim_cur);
+	if (open_max == 0)
+		open_max = 65536;
+#else /* BSD */
+	if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
+		err(1, "getrlimit");
+	open_max = (unsigned)rl.rlim_max;
 	rl.rlim_cur = (rlim_t)open_max;
 	if (setrlimit(RLIMIT_NOFILE, &rl) != 0)
-		err(1, "setrlimit cannot set rlim_cur to %ld", open_max);
+		err(1, "setrlimit cannot set rlim_cur to %u", open_max);
+#endif
 
-rlim_set:
+	if (getenv("EV_TRACE"))
+		fprintf(stderr, "open_max: %d\n", open_max);
 
 	/* prevent interactive utilities from paging output */
 	setenv("PAGER", "/bin/cat", 0);
@@ -204,7 +204,7 @@ rlim_set:
 		errx(1, "No regular files to watch");
 	if (n_files == -1)
 		errx(1, "Too many files listed; the hard limit for your login"
-		    " class is %ld. Please consult"
+		    " class is %u. Please consult"
 		    " http://eradman.com/entrproject/limits.html", open_max);
 	for (i=0; i<n_files; i++)
 		watch_file(kq, files[i]);
@@ -219,7 +219,8 @@ rlim_set:
 		}
 
 		/* remember terminal settings */
-		tcgetattr(STDIN_FILENO, &canonical_tty);
+		if (tcgetattr(STDIN_FILENO, &canonical_tty) == -1)
+			errx(1, "unable to get terminal attributes, use '-n' to run non-interactively");
 
 		/* Use keyboard input as a trigger */
 		EV_SET(&evSet, STDIN_FILENO, EVFILT_READ, EV_ADD, NOTE_LOWAT, 1, NULL);
@@ -261,7 +262,7 @@ terminate_utility() {
 void
 handle_exit(int sig) {
 	if (!noninteractive_opt)
-		xtcsetattr(0, TCSADRAIN, &canonical_tty);
+		xtcsetattr(STDIN_FILENO, TCSADRAIN, &canonical_tty);
 	terminate_utility();
 	if ((sig == SIGINT || sig == SIGHUP))
 	    exit(0);
@@ -417,7 +418,7 @@ run_utility(char *argv[]) {
 	char **new_argv;
 	char *p, *arg_buf;
 	int argc;
-	int stdin_pipe[2];
+	int stdin_pipe[2] = {0, 0};
 
 	if (restart_opt == 1) {
 		terminate_utility();
@@ -587,7 +588,6 @@ watch_loop(int kq, char *argv[]) {
 	struct stat sb;
 	char c;
 	struct termios character_tty;
-	char *trace_message;
 
 	leading_edge = files[0]; /* default */
 	if (postpone_opt == 0)
@@ -601,7 +601,7 @@ watch_loop(int kq, char *argv[]) {
 
 main:
 	if (!noninteractive_opt)
-		xtcsetattr(0, TCSADRAIN, &character_tty);
+		xtcsetattr(STDIN_FILENO, TCSADRAIN, &character_tty);
 	if ((reopen_only == 1) || (collate_only == 1)) {
 		nev = xkevent(kq, NULL, 0, evList, 32, &evTimeout);
 	}
@@ -640,7 +640,7 @@ main:
 			dir_modified += compare_dir_contents(file);
 	}
 	if (!noninteractive_opt)
-		xtcsetattr(0, TCSADRAIN, &canonical_tty);
+		xtcsetattr(STDIN_FILENO, TCSADRAIN, &canonical_tty);
 
 	collate_only = 0;
 	for (i=0; i<nev; i++) {
@@ -668,7 +668,6 @@ main:
 	}
 
 	for (i=0; i<nev && reopen_only == 0; i++) {
-		trace_message = "";
 
 		if (evList[i].filter != EVFILT_VNODE)
 			continue;
@@ -690,27 +689,30 @@ main:
 			if (file->mode != sb.st_mode) {
 			    do_exec = 1;
 			    file->mode = sb.st_mode;
-			    trace_message = "mode changed";
 			}
 			/* Possible on Linux when a running binary is unlinked */
 			if (file->ino != sb.st_ino) {
 			    do_exec = 1;
 			    file->ino = sb.st_ino;
-			    trace_message = "inode changed";
 			}
 		}
 		else if (evList[i].fflags & NOTE_ATTRIB)
 			continue;
 
-		if ((file->is_dir == 0) && (leading_edge_set == 0)) {
+		if ((leading_edge_set == 0) &&
+			    (file->is_dir == 0) &&
+			    (do_exec == 1)) {
 			leading_edge = file;
 			leading_edge_set = 1;
 		}
 
 		if (getenv("EV_TRACE")) {
-			fprintf(stderr, "EVFILT_VNODE: %d/%d: "
-			    "fflags: 0x%x %s\n", i, nev, evList[i].fflags,
-			    trace_message);
+			fprintf(stderr, "%d/%d: fflags: 0x%x %s %o %s\n",
+			    i, nev,
+			    evList[i].fflags,
+			    file->is_dir ? "d" : "r",
+			    file->mode,
+			    file->fn);
 		}
 	}
 
