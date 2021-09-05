@@ -1,3 +1,7 @@
 Tests: smoke
 Depends: entr
 Restrictions: allow-stderr superficial
+
+Test-Command: make test
+Depends: entr
+Restrictions: build-needed allow-stderr
