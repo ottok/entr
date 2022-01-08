@@ -1,3 +1,13 @@
+entr (5.1-1) UNRELEASED; urgency=medium
+
+  * New upstream version 5.1:
+    - Detect files moved to or from directories on Linux
+    - Allow detection of directory entries beginning with '.' by specifying
+      '-d' twice
+    - Only reset terminal settings in exit handler if settings were changed
+
+ -- Yuri D'Elia <wavexx@thregr.org>  Sat, 08 Jan 2022 14:54:50 +0100
+
 entr (5.0-1) unstable; urgency=medium
 
   [ Yuri D'Elia ]
