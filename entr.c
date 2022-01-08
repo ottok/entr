@@ -31,9 +31,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <time.h>
 #include <unistd.h>
-#include <termios.h>
 
 #include "missing/compat.h"
 
@@ -79,10 +79,12 @@ int aggressive_opt;
 int clear_opt;
 int dirwatch_opt;
 int noninteractive_opt;
+int oneshot_opt;
 int postpone_opt;
 int restart_opt;
 int shell_opt;
-int oneshot_opt;
+
+int termios_set;
 struct termios canonical_tty;
 
 /* forwards */
@@ -261,7 +263,7 @@ terminate_utility() {
 
 void
 handle_exit(int sig) {
-	if (!noninteractive_opt)
+	if ((!noninteractive_opt) && (termios_set))
 		xtcsetattr(STDIN_FILENO, TCSADRAIN, &canonical_tty);
 	terminate_utility();
 	if ((sig == SIGINT || sig == SIGHUP))
@@ -318,7 +320,7 @@ process_input(FILE *file, WatchFile *files[], int max_files) {
 			n_files++;
 		}
 		/* also watch the directory if it's not already in the list */
-		if (dirwatch_opt == 1) {
+		if (dirwatch_opt > 0) {
 			if (S_ISDIR(sb.st_mode) != 0)
 				path = &buf[0];
 			else
@@ -351,7 +353,7 @@ int list_dir(char *dir) {
 	if (dfd == NULL)
 		errx(1, "unable to open directory: '%s'", dir);
 	while((dp = readdir(dfd)) != NULL)
-		if (dp->d_name[0] != '.')
+		if ((dirwatch_opt == 2) || (dp->d_name[0] != '.'))
 			count++;
 	closedir(dfd);
 	return count;
@@ -377,7 +379,7 @@ set_options(char *argv[]) {
 			clear_opt = clear_opt ? 2 : 1;
 			break;
 		case 'd':
-			dirwatch_opt = 1;
+			dirwatch_opt = dirwatch_opt ? 2 : 1;
 			break;
 		case 'n':
 			noninteractive_opt = 1;
@@ -600,8 +602,11 @@ watch_loop(int kq, char *argv[]) {
 	}
 
 main:
-	if (!noninteractive_opt)
+	if (!noninteractive_opt) {
 		xtcsetattr(STDIN_FILENO, TCSADRAIN, &character_tty);
+		termios_set = 1;
+	}
+
 	if ((reopen_only == 1) || (collate_only == 1)) {
 		nev = xkevent(kq, NULL, 0, evList, 32, &evTimeout);
 	}
