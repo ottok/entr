@@ -16,9 +16,6 @@
 
 # test runner
 
-trap 'printf "$0: exit code $? on line $LINENO\nFAIL: $this\n"; exit 1' ERR \
-    2> /dev/null || exec bash $0 "$@"
-typeset -i tests=0
 function try { let tests+=1; this="$1"; }
 
 function assert {
@@ -95,24 +92,36 @@ try "spacebar triggers utility"
 
 try "exec a command using one-shot option"
 	setup
-	ls $tmp/file* | ./entr -zp cat $tmp/file2 >$tmp/exec.out 2>$tmp/exec.err &
+	ls $tmp/file2 | ./entr -zp cat $tmp/file2 >$tmp/exec.out 2>$tmp/exec.err &
 	bgpid=$! ; zz
 	echo 456 >> $tmp/file2 ; zz
-	wait $bgpid || assert "$?" "0"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.err)" ""
 	assert "$(head -n1 $tmp/exec.out)" "$(printf '456\n')"
 
+try "exec a command using one-shot option and return signal number"
+	setup
+	ls $tmp/file2 | ./entr -z sh -c 'kill -9 $$' >$tmp/exec.out 2>$tmp/exec.err
+	assert "$?" "137"
+	assert "$(cat $tmp/exec.err)" ""
+	assert "$(cat $tmp/exec.out)" ""
+
+try "exec a command using one-shot and shell options and return signal"
+	setup
+	ls $tmp/file2 | ./entr -z -s 'kill -9 $$' >$tmp/exec.out 2>$tmp/exec.err
+	assert "$?" "137"
+	assert "$(tail -c23  $tmp/exec.out)" "$(printf "terminated by signal 9\n")"
+
 try "fail to exec a command using one-shot option"
 	setup
-	ls $tmp/file* | ./entr -z /usr/bin/false_X >$tmp/exec.out 2>$tmp/exec.err &
-	bgpid=$! ; zz
-	wait $bgpid || assert "$?" "1"
+	ls $tmp/file* | ./entr -z /usr/bin/false_X 2>$tmp/exec.err
+	assert "$?" "1"
 
 try "exec a command using one-shot option exit code from child"
 	setup
 	ls $tmp/file* | ./entr -z sh -c 'exit 4' &
 	bgpid=$! ; zz
-	wait $bgpid || assert "$?" "4"
+	wait $bgpid; assert "$?" "4"
 
 try "restart a server when a file is modified using one-shot option"
 	setup
@@ -125,7 +134,7 @@ try "restart a server when a file is modified using one-shot option"
 			echo "123" | nc -U $tmp/nc.s
 		} ; zz
 		echo 456 >> $tmp/file2 ; zz
-		wait $bgpid || assert "$?" "130"
+		wait $bgpid; assert "$?" "0"
 		assert "$(cat $tmp/exec.out)" "123"
 	fi
 
@@ -134,7 +143,7 @@ try "exec a command in non-intertive mode"
 	ls $tmp/file* | ./entr -n tty >$tmp/exec.out &
 	bgpid=$! ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "not a tty"
 
 try "exec a command as a background task and ensure stdin is closed"
@@ -142,7 +151,7 @@ try "exec a command as a background task and ensure stdin is closed"
 	ls $tmp/file* | ./entr -r sh -c 'test -t 0; echo $?; kill $$' >$tmp/exec.out &
 	bgpid=$! ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "1"
 
 try "exec a command as a background task, and verify that read from stdin doesn't complain"
@@ -150,7 +159,7 @@ try "exec a command as a background task, and verify that read from stdin doesn'
 	ls $tmp/file* | ./entr -r sh -c 'read X' 2>$tmp/exec.err &
 	bgpid=$! ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.err)" ""
 
 try "exec single shell utility and exit when a file is added to an implicit watch path"
@@ -159,7 +168,7 @@ try "exec single shell utility and exit when a file is added to an implicit watc
 	    || true &
 	bgpid=$! ; zz
 	touch $tmp/newfile
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "ping"
 	assert "$(cat $tmp/exec.err)" "entr: directory altered"
 
@@ -169,7 +178,7 @@ try "exec single shell utility and exit when a subdirectory is added"
 	    || true &
 	bgpid=$! ; zz
 	mkdir $tmp/newdir
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "ping"
 	assert "$(cat $tmp/exec.err)" "entr: directory altered"
 	rmdir $tmp/newdir
@@ -180,7 +189,7 @@ try "exec single shell utility and exit when a hidden subdirectory is added"
 	    || true &
 	bgpid=$! ; zz
 	mkdir $tmp/.newdir
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "ping"
 	assert "$(cat $tmp/exec.err)" "entr: directory altered"
 	rmdir $tmp/.newdir
@@ -191,7 +200,7 @@ try "exec single shell utility and exit when a file is added to a specific path"
 	    || true &
 	bgpid=$! ; zz
 	touch $tmp/newfile
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "ping"
 	assert "$(cat $tmp/exec.err)" "entr: directory altered"
 
@@ -201,7 +210,7 @@ try "do nothing when a file not monitored is changed in directory watch mode"
 	bgpid=$! ; zz
 	echo "123" > $tmp/file1
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" ""
 	assert "$(cat $tmp/exec.err)" ""
 
@@ -213,7 +222,7 @@ try "exec utility when a file is written by Vim in directory watch mode"
 	    -c ":r!date" \
 	    -c ":wq" $tmp/file1 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "changed"
 	assert "$(cat $tmp/exec.err)" ""
 
@@ -224,7 +233,7 @@ try "exec utility when a file is opened for write and then closed"
 	bgpid=$! ; zz
 	: > $tmp/file1 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	if [ $(uname | egrep 'Darwin|FreeBSD|DragonFly') ]; then
 		skip "NOTE_TRUNCATE not supported"
 	else
@@ -252,7 +261,7 @@ try "exec single utility when an entire stash of files is reverted"
 		git checkout *.h -q
 		cd - > /dev/null ; zz
 		kill -INT $bgpid
-		wait $bgpid || assert "$?" "130"
+		wait $bgpid; assert "$?" "0"
 		assert "$(cat $tmp/exec.out)" "changed"
 	fi
 
@@ -264,7 +273,7 @@ try "exec utility when a file is written by Vim"
 	    -c ":r!date" \
 	    -c ":wq" $tmp/file1 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "changed"
 
 try "exec shell utility when a file is written by Vim with 'backup'"
@@ -276,7 +285,7 @@ try "exec shell utility when a file is written by Vim with 'backup'"
 	    -c ":r!date" \
 	    -c ":wq" $tmp/file1 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "changed"
 
 try "exec shell utility when a file is written by Vim with 'nowritebackup'"
@@ -288,7 +297,7 @@ try "exec shell utility when a file is written by Vim with 'nowritebackup'"
 	    -c ":r!date" \
 	    -c ":wq" $tmp/file1 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "changed"
 
 try "restart a server when a file is modified"
@@ -299,7 +308,7 @@ try "restart a server when a file is modified"
 	assert "$(cat $tmp/exec.out)" "started."
 	echo 456 >> $tmp/file2 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "$(printf 'started.\nstarted.')"
 
 try "ensure that all shell subprocesses are terminated in restart mode"
@@ -336,7 +345,7 @@ try "exit with no action when restart and dirwatch flags are combined"
 	assert "$(cat $tmp/exec.out)" "started."
 	touch $tmp/newfile
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "$(printf 'started.')"
 
 try "exec single shell utility when two files change simultaneously"
@@ -346,7 +355,7 @@ try "exec single shell utility when two files change simultaneously"
 	bgpid=$! ; zz
 	echo 456 >> $tmp/file1 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "ping"
 
 try "exec single shell utility on startup and when a file is changed"
@@ -355,7 +364,7 @@ try "exec single shell utility on startup and when a file is changed"
 	bgpid=$! ; zz
 	echo 456 >> $tmp/file1 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "pingping"
 
 try "exec a command if a file is made executable"
@@ -364,7 +373,7 @@ try "exec a command if a file is made executable"
 	bgpid=$! ; zz
 	chmod +x $tmp/file2 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "$tmp/file2"
 
 try "ensure watches operate on a running executable"
@@ -375,7 +384,7 @@ try "ensure watches operate on a running executable"
 	bgpid=$! ; zz
 	cp -f /bin/sleep $tmp/ ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	rm -f $tmp/sleep
 	assert "$(cat $tmp/exec.out)" "$(printf 'vroom\nvroom\n')"
 
@@ -385,7 +394,7 @@ try "exec a command using the first file to change"
 	bgpid=$! ; zz
 	echo 456 > $tmp/file1 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "456"
 
 try "exec single shell utility using utility substitution"
@@ -394,7 +403,7 @@ try "exec single shell utility using utility substitution"
 	bgpid=$! ; zz
 	echo 456 >> $tmp/file2; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "$tmp/file2: ASCII text"
 
 try "watch and exec a program that is overwritten"
@@ -407,7 +416,7 @@ try "watch and exec a program that is overwritten"
 	echo vroom
 	EOF
 	zz ; kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "vroom"
 
 try "exec an interactive utility when a file changes"
@@ -416,7 +425,7 @@ try "exec an interactive utility when a file changes"
 	bgpid=$! ; zz
 	echo 456 >> $tmp/file2 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	if ! test -t 0 ; then
 		skip "A TTY is not available"
 	else
@@ -429,7 +438,7 @@ try "exec a command using shell option"
 	bgpid=$! ; zz
 	echo 456 >> $tmp/file2 ; zz
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.err)" ""
 	assert "$(head -n1 $tmp/exec.out)" "$(printf ${tmp}'/file2: ASCII text')"
 
@@ -450,7 +459,7 @@ try "respond to events that occur while the utility is running"
 	echo "123" > $tmp/file1
 	sleep 1
 	kill -INT $bgpid
-	wait $bgpid || assert "$?" "130"
+	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "$(printf 'vroom\nvroom\n')"
 
 try "ensure that all subprocesses are terminated in restart mode when a file is removed"
