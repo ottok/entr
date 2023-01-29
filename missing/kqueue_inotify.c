@@ -94,6 +94,8 @@ kqueue(void) {
 		inotify_queue = inotify_init();
 	if (getenv("ENTR_INOTIFY_WORKAROUND"))
 		warnx("broken inotify workaround enabled");
+	else if (getenv("ENTR_INOTIFY_SYMLINK"))
+		warnx("monitoring symlinks");
 	return inotify_queue;
 }
 
@@ -146,6 +148,8 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 			else if (kev->flags & EV_ADD) {
 				if (getenv("ENTR_INOTIFY_WORKAROUND"))
 					wd = inotify_add_watch(kq, file->fn, IN_ALL|IN_MODIFY);
+				else if (getenv("ENTR_INOTIFY_SYMLINK"))
+					wd = inotify_add_watch(kq, file->fn, IN_ALL|IN_DONT_FOLLOW);
 				else
 					wd = inotify_add_watch(kq, file->fn, IN_ALL);
 				if (wd < 0)
@@ -206,7 +210,7 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 
 				eventlist[n].ident = iev->wd;
 				eventlist[n].filter = EVFILT_VNODE;
-				eventlist[n].flags = 0; 
+				eventlist[n].flags = 0;
 				eventlist[n].fflags = fflags;
 				eventlist[n].data = 0;
 				eventlist[n].udata = file_by_descriptor(iev->wd);
@@ -231,6 +235,6 @@ kevent(int kq, const struct kevent *changelist, int nchanges, struct
 		}
 	}
 	while ((poll(pfd, nfds, 50) > 0));
-	
+
 	return n;
 }
