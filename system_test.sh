@@ -14,6 +14,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+trap '' ERR 2> /dev/null || exec bash $0 "$@"
+
 # test runner
 
 function try { let tests+=1; this="$1"; }
@@ -36,7 +38,7 @@ trap "$clear_tty; $clear_tmux; $clear_tmp" EXIT
 
 # required utilities
 
-utils="git vim tmux"
+utils="file pgrep git vim tmux"
 for util in $utils; do
 	p=$(which $util 2> /dev/null) || {
 		echo "ERROR: could not locate the '$util' utility" >&2
@@ -234,7 +236,7 @@ try "exec utility when a file is opened for write and then closed"
 	: > $tmp/file1 ; zz
 	kill -INT $bgpid
 	wait $bgpid; assert "$?" "0"
-	if [ $(uname | egrep 'Darwin|FreeBSD|DragonFly') ]; then
+	if [ $(uname | grep -E 'Darwin|FreeBSD|DragonFly') ]; then
 		skip "NOTE_TRUNCATE not supported"
 	else
 		assert "$(cat $tmp/exec.out)" "changed"

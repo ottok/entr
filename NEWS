@@ -1,5 +1,14 @@
 = Release History
 
+== 5.3: January 20, 2023
+
+ - Symlink changes detected on Linux by setting 'ENTR_INOTIFY_SYMLINK'
+ - Use /dev/null rather then closed pipe for stdin in -r mode
+ - Utilize {O,FD}_CLOEXEC flag for unintentional leaks of descriptors to
+   executed utilities
+ - Remove C unit tests
+ - Only respond to attribute/inode changes on Linux
+
 == 5.2: May 05, 2022
 
  - Update copy of strlcpy(3) for Linux
@@ -314,4 +323,3 @@
 
  - Initial release at https://bitbucket.org/eradman/entr
  - Builds on all major BSD platforms
-
