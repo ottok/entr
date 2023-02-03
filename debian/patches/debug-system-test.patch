@@ -1,0 +1,57 @@
+Description: Output stdout and stderr if system test fails
+  To make it easy to debug a failing system_test.sh run on any CI system
+  output the standard output and error contents of the previous command.
+  .
+  Also set default git name/email to avoid unnecassary git warnings in the
+  CI logs.
+Author: Otto Kekäläinen <otto@debian.org>
+Forwarded: TODO
+Updated: 2023-02-03
+--- a/system_test.sh
++++ b/system_test.sh
+@@ -22,7 +22,16 @@ function try { let tests+=1; this="$1";
+
+ function assert {
+ 	[[ "$1" == "$2" ]] && { printf "."; return; }
+-	printf "\nFAIL: $this\n'$1' != '$2'\n"; exit 1
++	printf "\nFAIL: $this\n'$1' != '$2'\n"
++
++	echo "*************************************"
++	echo "Preceding stdout:"
++	cat $tmp/exec.out
++	echo "*************************************"
++	echo "Preceding stderr:"
++  cat $tmp/exec.err
++	echo "*************************************"
++  exit 1
+ }
+ function skip { printf "s"; }
+
+@@ -36,6 +45,18 @@ clear_tmux='tmux kill-session -t $tsessi
+ clear_tmp='rm -rf $tmp'
+ trap "$clear_tty; $clear_tmux; $clear_tmp" EXIT
+
++# required binary
++
++ENTR="$(./entr 2>&1)"
++if echo "$ENTR" | grep -qF release
++then
++	echo "Testing Entr " "$(echo "$ENTR" | grep -F release)"
++else
++	echo $ENTR
++	echo "Entr binary did not run as expected"
++	exit 1
++fi
++
+ # required utilities
+
+ utils="file pgrep git vim tmux"
+@@ -250,6 +271,8 @@ try "exec single utility when an entire
+ 		cp /usr/include/*.h $tmp/
+ 		cd $tmp
+ 		git init -q
++		git config --local user.email "nobody@example.com"
++		git config --local user.name "nobody@example.com"
+ 		git add *.h
+ 		git commit -m "initial checkin" -q
+ 		for f in `ls *.h | head`; do
