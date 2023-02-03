@@ -1,7 +1,20 @@
-Tests: smoke
-Depends: entr
-Restrictions: allow-stderr superficial
+Test-Command: entr -h 2>&1 | grep usage
+Features: test-name=print-help-message
+# This very simple test just checks that the binary starts and prints out the
+# usage instructions, detected by keyword "usage".
 
-Test-Command: make test
-Depends: entr
+Test-Command: ./system_test.sh
+Features: test-name=upstream-system-test
+Depends: file,
+         git,
+         procps,
+         tmux,
+         vim
 Restrictions: build-needed allow-stderr
+# build-needed: The upstream test expects to find `./entr` as a file in current
+# path so therefore rebuild the package instead of testing just the downloaded
+# binary like autopkgtests would normally do.
+#
+# allow-stderr: The upstream test runs git commands that always spits warnings
+# to standard error about git user and email not being set, so the normal
+# assumption of autopkgtests to not have any warnings must be exempted.
