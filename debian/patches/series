@@ -1,2 +1,3 @@
+simplified-build-test.patch
 libbsd-overlay.patch
 kfreebsd-support.patch
