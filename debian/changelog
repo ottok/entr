@@ -1,8 +1,10 @@
-entr (5.3-1) UNRELEASED; urgency=medium
+entr (5.3-1) unstable; urgency=medium
 
   * New upstream version 5.3
+  * Add patch to simplify tests that validate that build succeeded
+  * Rewrite autopkgtests to use new system_test.sh in Entr 5.3
 
- -- Otto Kekäläinen <otto@debian.org>  Sun, 29 Jan 2023 10:48:11 -0800
+ -- Otto Kekäläinen <otto@debian.org>  Sun, 05 Feb 2023 15:16:11 -0800
 
 entr (5.1-1) unstable; urgency=medium
 
