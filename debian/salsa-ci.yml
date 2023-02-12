@@ -4,17 +4,20 @@ include:
 
 # Additional builds on arm64 only when in main project as only it has runners
 # available in https://salsa.debian.org/groups/debian/-/runners
+# Don't use the SALSA_CI_DISABLE_BUILD_PACKAGE_ARM64 & co tags, as they don't
+# have this logic for testing group name and will end up making all pipelines
+# in forks stuck forever.
 build arm64:
   extends: .build-package-arm64
   rules:
-    - if: $CI_PROJECT_ROOT_NAMESPACE  == "mariadb-team"
+    - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
 
 build armel:
   extends: .build-package-armel
   rules:
-    - if: $CI_PROJECT_ROOT_NAMESPACE  == "mariadb-team"
+    - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
 
 build armhf:
   extends: .build-package-armhf
   rules:
-    - if: $CI_PROJECT_ROOT_NAMESPACE  == "mariadb-team"
+    - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
