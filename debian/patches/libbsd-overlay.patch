@@ -3,7 +3,6 @@ Description: Override upstream copy and use libbsd
   instead on our supported targets.
 Author: Yuri D'Elia <wavexx@thregr.org>
 Forwarded: not-needed
-Updated: 2020-01-29
 
 --- a/Makefile.linux
 +++ b/Makefile.linux

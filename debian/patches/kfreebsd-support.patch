@@ -3,7 +3,6 @@ Description: Support the hybrid GNU/kFreeBSD
   which supports kqueue natively but still requires the libbsd overlay.
 Author: Yuri D'Elia <wavexx@thregr.org>
 Forwarded: not-needed
-Updated: 2019-10-24
 
 --- /dev/null
 +++ b/Makefile.kfreebsd

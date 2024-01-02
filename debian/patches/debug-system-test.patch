@@ -6,7 +6,6 @@ Description: Output stdout and stderr if system test fails
   CI logs.
 Author: Otto Kekäläinen <otto@debian.org>
 Forwarded: TODO
-Updated: 2023-02-03
 --- a/system_test.sh
 +++ b/system_test.sh
 @@ -22,7 +22,16 @@ function try { let tests+=1; this="$1";

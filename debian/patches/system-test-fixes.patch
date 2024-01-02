@@ -6,7 +6,6 @@ Description: Skip tests that fail in Salsa-CI (and likely elsewhere)
   it in similar CI.
 Author: Otto Kekäläinen <otto@debian.org>
 Forwarded: not-needed
-Updated: 2023-02-03
 --- a/system_test.sh
 +++ b/system_test.sh
 @@ -115,13 +115,29 @@ try "spacebar triggers utility"
