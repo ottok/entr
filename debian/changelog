@@ -1,3 +1,9 @@
+entr (5.5-1) unstable; urgency=medium
+
+  * New upstream version 5.5
+
+ -- Otto Kekäläinen <otto@debian.org>  Tue, 02 Jan 2024 12:37:41 +0800
+
 entr (5.3-1) unstable; urgency=medium
 
   * New upstream version 5.3

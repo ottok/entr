@@ -16,11 +16,10 @@ Updated: 2019-10-24
 +include Makefile.bsd
 --- a/configure
 +++ b/configure
-@@ -8,6 +8,7 @@ copy_mk() {
- case `uname` in
-     Darwin) copy_mk macos ;;
-     Linux)  copy_mk linux ;;
-+    GNU/kFreeBSD) copy_mk kfreebsd ;;
-     *)      copy_mk bsd ;;
+@@ -28,5 +28,6 @@ done
+ case "${TARGET_OS:-`uname`}" in
+ 	Darwin) copy_mk macos ;;
+ 	Linux)  copy_mk linux ;;
++	GNU/kFreeBSD) copy_mk kfreebsd ;;
+ 	*)      copy_mk bsd ;;
  esac
- 

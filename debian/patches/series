@@ -1,5 +1,4 @@
 libbsd-overlay.patch
 kfreebsd-support.patch
 debug-system-test.patch
-simplified-build-test.patch
 system-test-fixes.patch

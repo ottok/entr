@@ -10,7 +10,7 @@ Updated: 2023-02-03
 --- a/system_test.sh
 +++ b/system_test.sh
 @@ -22,7 +22,16 @@ function try { let tests+=1; this="$1";
-
+ 
  function assert {
  	[[ "$1" == "$2" ]] && { printf "."; return; }
 -	printf "\nFAIL: $this\n'$1' != '$2'\n"; exit 1
@@ -26,11 +26,11 @@ Updated: 2023-02-03
 +  exit 1
  }
  function skip { printf "s"; }
-
-@@ -36,6 +45,18 @@ clear_tmux='tmux kill-session -t $tsessi
- clear_tmp='rm -rf $tmp'
+ 
+@@ -37,6 +46,18 @@ clear_tmp='rm -rf $tmp'
  trap "$clear_tty; $clear_tmux; $clear_tmp" EXIT
-
+ trap 'printf "\nTerminated by SIGINT at line $LINENO\n"; exit 1' INT
+ 
 +# required binary
 +
 +ENTR="$(./entr 2>&1)"
@@ -44,14 +44,5 @@ Updated: 2023-02-03
 +fi
 +
  # required utilities
-
+ 
  utils="file pgrep git vim tmux"
-@@ -250,6 +271,8 @@ try "exec single utility when an entire
- 		cp /usr/include/*.h $tmp/
- 		cd $tmp
- 		git init -q
-+		git config --local user.email "nobody@example.com"
-+		git config --local user.name "nobody@example.com"
- 		git add *.h
- 		git commit -m "initial checkin" -q
- 		for f in `ls *.h | head`; do

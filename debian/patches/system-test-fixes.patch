@@ -9,9 +9,9 @@ Forwarded: not-needed
 Updated: 2023-02-03
 --- a/system_test.sh
 +++ b/system_test.sh
-@@ -114,13 +114,29 @@ try "spacebar triggers utility"
+@@ -115,13 +115,29 @@ try "spacebar triggers utility"
  # file system tests
-
+ 
  try "exec a command using one-shot option"
 -	setup
 -	ls $tmp/file2 | ./entr -zp cat $tmp/file2 >$tmp/exec.out 2>$tmp/exec.err &
@@ -43,6 +43,6 @@ Updated: 2023-02-03
 +	echo; echo "$tests tests PASSED"
 +	exit 0
 +fi
-
+ 
  try "exec a command using one-shot option and return signal number"
  	setup
