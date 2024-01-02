@@ -20,6 +20,10 @@
 #include <sys/stat.h>
 #include <sys/event.h>
 
+#if defined(_MACOS_PORT)
+#include <sys/sysctl.h>
+#endif
+
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
@@ -69,6 +73,8 @@ int shell_opt;
 int termios_set;
 struct termios canonical_tty;
 
+static char *shell, *shell_base;
+
 /* forwards */
 
 static void usage();
@@ -100,8 +106,8 @@ main(int argc, char *argv[]) {
 	struct kevent evSet;
 	unsigned open_max;
 
-	 if (pledge("stdio rpath tty proc exec", NULL) == -1)
-	    err(1, "pledge");
+	if (pledge("stdio rpath tty proc exec", NULL) == -1)
+		err(1, "pledge");
 
 	/* call usage() if no command is supplied */
 	if (argc < 2) usage();
@@ -133,10 +139,11 @@ main(int argc, char *argv[]) {
 #elif defined(_MACOS_PORT)
 	if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
 		err(1, "getrlimit");
-	/* guard against unrealistic replies */
-	open_max = min(65536, (unsigned)rl.rlim_cur);
-	if (open_max == 0)
-		open_max = 65536;
+	size_t len = sizeof(open_max);
+	sysctlbyname("kern.maxfilesperproc", &open_max, &len, NULL, 0);
+	rl.rlim_cur = (rlim_t)open_max;
+	if (setrlimit(RLIMIT_NOFILE, &rl) != 0)
+		err(1, "setrlimit cannot set rlim_cur to %u", open_max);
 #else /* BSD */
 	if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
 		err(1, "getrlimit");
@@ -155,14 +162,17 @@ main(int argc, char *argv[]) {
 	/* ensure a shell is available to use */
 	setenv("SHELL", "/bin/sh", 0);
 
+	shell = getenv("SHELL");
+	shell_base = strdup(shell);
+	if (shell_base == NULL)
+		err(1, "cannot duplicate string");
+	shell_base = basename(shell_base);
+
 	/* sequential scan may depend on a 0 at the end */
 	files = calloc(open_max+1, sizeof(WatchFile *));
 
 	if ((kq = kqueue()) == -1)
 		err(1, "cannot create kqueue");
-
-	if (fcntl(kq, F_SETFD, FD_CLOEXEC) == -1)
-		warn("failed to set FD_CLOEXEC to kqueue descriptor");
 
 	/* expect file list from a pipe */
 	if (isatty(fileno(stdin)))
@@ -236,14 +246,15 @@ handle_exit(int sig) {
 	terminate_utility();
 
 	if ((sig == SIGINT || sig == SIGHUP))
-	    exit(0);
+		_exit(0);
 	else
-	    raise(sig);
+		raise(sig);
 }
 
 void
 proc_exit(int sig) {
 	int status;
+	int saved_errno = errno;
 
 	if ((!noninteractive_opt) && (termios_set))
 		tcsetattr(STDIN_FILENO, TCSADRAIN, &canonical_tty);
@@ -256,20 +267,26 @@ proc_exit(int sig) {
 			print_child_status(child_status);
 
 		if WIFSIGNALED(child_status)
-			exit(128 + WTERMSIG(child_status));
+			_exit(128 + WTERMSIG(child_status));
 		else
-			exit(WEXITSTATUS(child_status));
+			_exit(WEXITSTATUS(child_status));
 	}
+	/* restore errno so that the resuming code is unimpacted. */
+	errno = saved_errno;
 }
 
 void
 print_child_status(int status) {
+	int len;
+	char buf[2048];
+
 	if WIFSIGNALED(status)
-		fprintf(stdout, "%s terminated by signal %d\n",
-		    basename(getenv("SHELL")), WTERMSIG(status));
+		len = snprintf(buf, sizeof(buf), "%s terminated by signal %d\n",
+		    shell_base, WTERMSIG(status));
 	else
-		fprintf(stdout, "%s returned exit code %d\n",
-		    basename(getenv("SHELL")), WEXITSTATUS(status));
+		len = snprintf(buf, sizeof(buf), "%s returned exit code %d\n",
+		    shell_base, WEXITSTATUS(status));
+	write(STDOUT_FILENO, buf, len);
 }
 
 /*
@@ -414,7 +431,7 @@ run_utility(char *argv[]) {
 		arg_buf = malloc(ARG_MAX);
 		new_argv = calloc(argc+1, sizeof(char *));
 		realpath(leading_edge->fn, arg_buf);
-		new_argv[0] = getenv("SHELL");
+		new_argv[0] = shell;
 		new_argv[1] = "-c";
 		new_argv[2] = argv[0];
 		new_argv[3] = arg_buf;
@@ -489,23 +506,28 @@ run_utility(char *argv[]) {
 void
 watch_file(int kq, WatchFile *file) {
 	struct kevent evSet;
-	int i;
+	int i = 0;
 	struct timespec delay = { 0, 100 * 1000000 };
 
 	/* wait up to 1 second for file to become available */
-	for (i=0; i < 10; i++) {
+	for (;;) {
 		#ifdef O_EVTONLY
 		file->fd = open(file->fn, O_RDONLY|O_CLOEXEC|O_EVTONLY);
 		#else
 		file->fd = open(file->fn, O_RDONLY|O_CLOEXEC);
 		#endif
-		if (file->fd == -1) nanosleep(&delay, NULL);
-		else break;
-	}
-	if (file->fd == -1) {
-		warn("cannot open '%s'", file->fn);
-		terminate_utility();
-		exit(1);
+		if (file->fd == -1) {
+			if (i < 10)
+				nanosleep(&delay, NULL);
+			else {
+				warn("cannot open '%s'", file->fn);
+				terminate_utility();
+				exit(1);
+			}
+		}
+		else
+			break;
+		i++;
 	}
 
 	EV_SET(&evSet, file->fd, EVFILT_VNODE, EV_ADD | EV_CLEAR, NOTE_ALL, 0,

@@ -1,9 +1,9 @@
 Event Notify Test Runner
 ========================
 
-A utility for running arbitrary commands when files change. Uses [kqueue(2)] or
-[inotify(7)] to avoid polling.  `entr` was written to make rapid feedback and
-automated testing natural and completely ordinary.
+A utility for running arbitrary commands when files change. Uses kqueue(2) or
+inotify(7) to avoid polling.  `entr` was written to facilitate rapid feedback
+on the command line.
 
 Source Installation - BSD, Mac OS, and Linux
 --------------------------------------------
@@ -17,9 +17,9 @@ To see available build options run `./configure -h`
 Docker and WSL
 --------------
 
-Incomplete inotify support on Windows Subsystem for Linux and Docker for Mac can
-cause `entr` to respond inconsistently. Setting the environment variable
-`ENTR_INOTIFY_WORKAROUND` will enable `entr` to operate in these environments.
+Incomplete inotify support on _Windows Subsystem for Linux_ and _Docker for Mac_
+may cause `entr` to respond incorrectly. Setting the environment variable
+`ENTR_INOTIFY_WORKAROUND` enables `entr` to operate in these environments.
 
 Linux Features
 --------------
@@ -32,7 +32,7 @@ Man Page Examples
 
 Rebuild a project if source files change, limiting output to the first 20 lines:
 
-    $ find src/ | entr sh -c 'make | head -n 20'
+    $ find src/ | entr -s 'make | head -n 20'
 
 Launch and auto-reload a node.js server:
 
@@ -53,8 +53,6 @@ Auto-reload a web server, or terminate if the server exits
 News
 ----
 
-A release history as well as features in the upcoming release are covered in the
-[NEWS](NEWS) file.
-
-[kqueue(2)]: http://man.openbsd.org/kqueue.2
-[inotify(7)]: http://man.he.net/?section=all&topic=inotify
+Notification of new releases are provided by an
+[Atom feed](https://github.com/eradman/entr/releases.atom),
+and release history is covered in the [NEWS](NEWS) file.

@@ -1,21 +1,21 @@
 PREFIX ?= /usr/local
 MANPREFIX ?= ${PREFIX}/man
-RELEASE = 5.3
+RELEASE = 5.5
 CPPFLAGS += -DRELEASE=\"${RELEASE}\"
 
-all: versioncheck entr
+all: entr
 
 test: entr
+	ls entr.1 | ./entr -zns 'wc $$0'
+
+check: entr
 	./system_test.sh
 
 entr: entr.c ${EXTRA_SRC}
 	${CC} ${CFLAGS} ${CPPFLAGS} ${LDFLAGS} ${EXTRA_SRC} entr.c -o $@
 
-entr_spec: entr_spec.c entr.c ${EXTRA_SRC}
-	${CC} ${CFLAGS} ${CPPFLAGS} ${LDFLAGS} ${EXTRA_SRC} entr_spec.c -o $@
-
 clean:
-	rm -f entr entr_spec *.o
+	rm -f entr
 
 distclean: clean
 	rm -f Makefile
@@ -30,7 +30,4 @@ uninstall:
 	rm ${DESTDIR}${PREFIX}/bin/entr
 	rm ${DESTDIR}${MANPREFIX}/man1/entr.1
 
-versioncheck:
-	@head -n3 NEWS | egrep -q "^= Next Release: ${RELEASE}|^== ${RELEASE}: "
-
-.PHONY: all test gcc-lint regress clean distclean install uninstall versioncheck
+.PHONY: all test check clean distclean install uninstall

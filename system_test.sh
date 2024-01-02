@@ -35,12 +35,13 @@ clear_tty='test -t 0 && stty echo icanon'
 clear_tmux='tmux kill-session -t $tsession 2>/dev/null || true'
 clear_tmp='rm -rf $tmp'
 trap "$clear_tty; $clear_tmux; $clear_tmp" EXIT
+trap 'printf "\nTerminated by SIGINT at line $LINENO\n"; exit 1' INT
 
 # required utilities
 
 utils="file pgrep git vim tmux"
 for util in $utils; do
-	p=$(which $util 2> /dev/null) || {
+	p=$(command -pv $util) || {
 		echo "ERROR: could not locate the '$util' utility" >&2
 		echo "System tests depend on the following: $utils" >&2
 		exit 1
@@ -250,6 +251,7 @@ try "exec single utility when an entire stash of files is reverted"
 		cp /usr/include/*.h $tmp/
 		cd $tmp
 		git init -q
+		git config --local user.email entr.test@example.com
 		git add *.h
 		git commit -m "initial checkin" -q
 		for f in `ls *.h | head`; do
