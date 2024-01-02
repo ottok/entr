@@ -2,3 +2,4 @@ libbsd-overlay.patch
 kfreebsd-support.patch
 debug-system-test.patch
 system-test-fixes.patch
+fix-spelling.patch
