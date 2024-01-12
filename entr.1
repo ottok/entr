@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd January 20, 2023
+.Dd November 17, 2023
 .Dt ENTR 1
 .Os
 .Sh NAME
@@ -165,7 +165,7 @@ A file was added to a directory and the directory watch option was specified
 .Sh EXAMPLES
 Rebuild a project if source files change, limiting output to the first 20 lines:
 .Pp
-.Dl $ find src/ | entr -s 'make | sed 20q'
+.Dl $ find src/ | entr -s 'make | head -n 20'
 .Pp
 Launch and auto-reload a node.js server:
 .Pp
