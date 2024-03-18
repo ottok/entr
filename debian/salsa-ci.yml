@@ -1,6 +1,21 @@
 include:
   - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
 
+variables:
+  SALSA_CI_DISABLE_WRAP_AND_SORT: 0
+  SALSA_CI_WRAP_AND_SORT_ARGS: '-ast'
+  SALSA_CI_AUTOPKGTEST_ALLOWED_EXIT_STATUS: 0
+  SALSA_CI_DISABLE_BUILD_PACKAGE_ARMEL: 0
+  SALSA_CI_DISABLE_BUILD_PACKAGE_ARMHF: 0
+  SALSA_CI_DISABLE_BUILD_PACKAGE_ARM64: 0
+  SALSA_CI_DISABLE_BUILD_PACKAGE_RISCV64: 0
+  SALSA_CI_DISABLE_BUILD_PACKAGE_TWICE: 0
+  SALSA_CI_ENABLE_BUILD_PACKAGE_PROFILES: 1
+  BUILD_PROFILES: nocheck,nodoc
+  SALSA_CI_ENABLE_ATOMIC_REPROTEST: 1
+  SALSA_CI_DISABLE_MISSING_BREAKS: 0
+  SALSA_CI_DISABLE_RC_BUGS: 0
+
 stages:
   - provisioning
   - build
@@ -32,6 +47,35 @@ build riscv64:
   extends: .build-package-riscv64
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+
+test-crossbuild-armhf:
+  stage: build
+  extends: .test-crossbuild-package-arm64
+  variables:
+    HOST_ARCH: armhf
+  allow_failure: true  # Cross-builds seem to fail frequently due to unclear reasons
+
+test-crossbuild-armel:
+  stage: build
+  extends: .test-crossbuild-package-arm64
+  variables:
+    HOST_ARCH: armel
+  allow_failure: true  # Cross-builds seem to fail frequently due to unclear reasons
+
+build bookworm-backports:
+  extends: .build-package
+  variables:
+    RELEASE: bookworm-backports
+
+build bullseye-backports:
+  extends: .build-package
+  variables:
+    RELEASE: bullseye-backports
+
+build stretch-backports:
+  extends: .build-package
+  variables:
+    RELEASE: stretch-backports
 
 .test-prepare-container: &test-prepare-container |
   # Change directory to ./debian/output where build artifacts can be found
