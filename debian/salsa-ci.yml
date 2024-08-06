@@ -1,6 +1,12 @@
 include:
- - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/salsa-ci.yml
- - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/pipeline-jobs.yml
+  - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
+
+stages:
+  - provisioning
+  - build
+  - test
+  - upgrade package and distro
+  - publish  # Stage referenced by Salsa CI template aptly stanza, so must exist even though not used
 
 # Additional builds on arm64 only when in main project as only it has runners
 # available in https://salsa.debian.org/groups/debian/-/runners
@@ -26,3 +32,192 @@ build riscv64:
   extends: .build-package-riscv64
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+
+.test-prepare-container: &test-prepare-container |
+  # Change directory to ./debian/output where build artifacts can be found
+  cd ${WORKING_DIR}
+  # Enable automatic restarts from maint scripts
+  sed -i "s/101/0/g" -i /usr/sbin/policy-rc.d
+  # Fake /sbin/runlevel to avoid warnings of "invoke-rc.d: could not determine current runlevel"
+  echo -e '#!/bin/sh\necho "N 5"' > /sbin/runlevel; chmod +x /sbin/runlevel
+  # Avoid the warnings of "debconf: unable to initialize frontend: Dialog"
+  echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+  # Emit non-zero exit code also on warnings to ensure CI stops on any issue
+  echo 'APT::Update::Error-Mode "any";' > /etc/apt/apt.conf.d/non-zero-exit-on-warnings
+  # Prime the apt cache so later apt commands can run
+  apt-get update -q
+
+.test-enable-sid-repos: &test-enable-sid-repos
+  # Skip this section if already in Sid
+  - |
+    if grep -q 'PRETTY_NAME="Debian GNU/Linux trixie/sid"' /etc/os-release
+    then
+      echo "Already using Sid, no need to enable it"
+    else
+      # Install tools that may be needed to circumvent issues in the upgrade
+      apt-get install -qq --yes --no-install-recommends ca-certificates curl
+      # Replace any old repos with just Sid, and trust blindly as old Debian releases won't have latest Sid in their keyring
+      echo 'deb [trusted=yes] http://deb.debian.org/debian sid main' > /etc/apt/sources.list
+      apt-get update -q
+    fi
+  # Upgrade minimal stack first
+  - apt-get install -q --yes apt || export APT_STATUS="failed"
+  # Upgrades from Bullseye (or older) to Trixie (or newer) will pull in
+  # base-files 13.4+, which fails on:
+  #   Preparing to unpack .../base-files_13.4_amd64.deb ...
+  #   *************************************************************************
+  #   *
+  #   * The base-files package cannot be installed because
+  #   * /bin is a directory, but should be a symbolic link.
+  #   *
+  #   * Please install the usrmerge package to convert this system to merged-/usr.
+  #   *
+  #   * For more information please read https://wiki.debian.org/UsrMerge.
+  #   *
+  #   *************************************************************************
+  # Therefore, an older base-files must be used:
+  - |
+    if [ "$APT_STATUS" = "failed" ]
+    then
+      curl -sLO https://snapshot.debian.org/archive/debian/20240531T083821Z/pool/main/b/base-files/base-files_13.2_amd64.deb
+      # Apt version in Jessie does not support 'apt install ./package.deb', use this only for Stretch or newer
+      apt-get install -q --yes --no-install-recommends ./base-files_13.2_amd64.deb || true
+      # Ensure upgrades past 13.2 are blocked to avoid failure on usrmerge issue
+      apt-mark hold base-files
+      apt-get install -q --yes --fix-broken apt
+    fi || export BASE_FILES_STATUS="failed"
+  # Latest apt attempts to pull in latest libc6, which fails on:
+  #   libc6 : Breaks: base-files (< 13.3~) but 13.2 is to be installed
+  # Therefore, older libc6 and it's dependency libc6-bin must be used:
+  - |
+    if [ "$BASE_FILES_STATUS" = "failed" ]
+    then
+      curl -sLO https://snapshot.debian.org/archive/debian/20240531T083821Z/pool/main/g/glibc/libc6_2.38-11_amd64.deb
+      curl -sLO https://snapshot.debian.org/archive/debian/20240531T083821Z/pool/main/g/glibc/libc-bin_2.38-11_amd64.deb
+      # Apt version in Jessie does not support 'apt install ./package.deb', use this only for Stretch or newer
+      apt-get install -q --yes --no-install-recommends ./libc6_2.38-11_amd64.deb ./libc-bin_2.38-11_amd64.deb || true
+      # Ensure upgrades past 2.38-11 are blocked to avoid failure on usrmerge issue
+      apt-mark hold libc6 libc-bin
+      apt-get install -q --yes --fix-broken apt
+    fi || export LIBC_STATUS="failed"
+  # Due to https://bugs.debian.org/993755 and #975077 upgrades from Buster
+  # (or older) to Bookworm (or newer) fails on:
+  #   /usr/bin/perl: error while loading shared libraries: libcrypt.so.1: cannot
+  #     open shared object file: No such file or directory
+  #   dpkg: error processing package libc6:amd64 (--configure):
+  # Therefore, the workaround in
+  # https://www.debian.org/releases/bookworm/amd64/release-notes/ch-information.en.html#libcrypt-upgrade-from-buster
+  # needs to be applied:
+  - |
+    if [ "$LIBC_STATUS" = "failed" ]
+    then
+      cd $(mktemp -d) # Use temp dir where apt can download and unpack files
+      apt-get -q --yes download libcrypt1
+      dpkg-deb -x libcrypt1_*.deb .
+      cp -ra usr/lib/* /lib/ || true # libcrypt 1:4.4.36-3+
+      cd - # Back to CI run directory
+      find /lib/*/libcrypt.* -ls # Show that new libcrypt is there
+      apt-mark unhold libc6 libc-bin
+      apt-get install -q --yes --fix-broken --no-install-recommends ./libc6_2.38-11_amd64.deb ./libc-bin_2.38-11_amd64.deb || true
+      # Ensure upgrades past 2.38-11 are blocked to avoid failure on usrmerge issue
+      apt-mark hold libc6 libc-bin
+      apt-get install -q --yes apt
+    fi
+  # If system has not undergone usrmerge upgrade, don't attempt it in CI containers
+  - test -L /bin || apt-mark hold usrmerge usr-is-merged
+  # For debugging purposes show what packages are now on hold
+  - apt-mark showhold
+  # Update base system
+  - |
+    # Upgrading from Stretch will fail on conflicts with util-linux:
+    #   dpkg: error processing archive /var/cache/apt/archives/util-linux_2.40.2-1_amd64.deb (--unpack):
+    #     trying to overwrite '/etc/pam.d/su', which is also in package login 1:4.4-4.1+deb9u1
+    #   dpkg: error processing archive /var/cache/apt/archives/util-linux_2.40.2-1_amd64.deb (--unpack):
+    #     trying to overwrite '/usr/share/bash-completion/completions/findmnt', which is also in package mount 2.29.2-1+deb9u1
+    # Root cause fix: https://salsa.debian.org/debian/util-linux/-/merge_requests/34
+    #
+    # Circumvent this by removing the conflicting packages first, as they are
+    # not essential for the upgrade to run.
+    # Note! If MariaDB is installed, this step will uninstall it.
+    if dpkg -l login mount | grep -F '+deb9'
+    then
+      apt-get remove login mount -qq --yes --allow-remove-essential || true
+    fi
+  - |
+    # First 'apt-get upgrade' run fails on:
+    #   dpkg (subprocess): unable to execute installed bash package post-installation script (/var/lib/dpkg/info/bash.postinst): No such file or directory
+    # Second run fails on:
+    #   dpkg (subprocess): unable to execute installed dash package post-installation script (/var/lib/dpkg/info/dash.postinst): No such file or directory
+    # Third run fails on:
+    #   update-alternatives: error: alternative path /bin/more doesn't exist
+    # Repeat upgrade attempts until passes
+    function usrmerge-temp-fix {
+      for x in bash dash sh more cp ln sleep
+      do
+        if [ -x /usr/bin/$x ]
+        then
+          cp -av /usr/bin/$x /bin/
+        fi
+      done
+    }
+    until apt-get install -q --yes bash dash util-linux coreutils lsb-base login mount
+    do
+      test -f /bin/cp || /usr/bin/cp -av /usr/bin/cp /bin/
+      usrmerge-temp-fix || true
+    done
+
+.test-enable-artifacts-repo: &test-enable-artifacts-repo |
+  apt-get install -qq --yes apt-utils
+  apt-ftparchive packages . > Packages
+  apt-ftparchive release . > Release
+  echo "deb [trusted=yes] file:$(pwd) ./" > /etc/apt/sources.list.d/local.list
+  apt-get update -q
+
+.test-upgrade: &test-upgrade
+  - *test-prepare-container
+  - apt-get install -q --yes entr
+  - dpkg -l entr
+  - *test-enable-sid-repos
+  - *test-enable-artifacts-repo
+  - apt-get upgrade -qq --simulate
+  - apt-get upgrade -qq --yes
+  # Extra fix needed in upgrades from Bullseye or older, as the previous step
+  # installs grep only in new path /usr/bin/grep
+  - test -f /bin/grep || cp -av /usr/bin/grep /bin/
+  - apt-get full-upgrade -qq --simulate
+  - apt-get full-upgrade -qq --yes
+  - >
+    dpkg -l | grep entr | grep salsaci || {
+      echo "ERROR! Entr was not upgraded from artifacts"
+      find -ls -maxdepth 3
+      exit 1
+    }
+
+upgrade from bookworm:
+  stage: upgrade package and distro
+  image: debian:bookworm
+  script:
+    - *test-upgrade
+
+upgrade from bullseye:
+  stage: upgrade package and distro
+  image: debian:bullseye
+  script:
+    - *test-upgrade
+
+upgrade from buster:
+  stage: upgrade package and distro
+  image: debian:buster
+  script:
+    - *test-upgrade
+
+upgrade from stretch:
+  stage: upgrade package and distro
+  image: debian:stretch
+  script:
+    - |
+      cat > /etc/apt/sources.list <<EOF
+      deb http://archive.debian.org/debian stretch main
+      deb http://archive.debian.org/debian-security stretch/updates main
+      EOF
+    - *test-upgrade
