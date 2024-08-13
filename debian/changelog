@@ -4,6 +4,7 @@ entr (5.6-1) UNRELEASED; urgency=medium
   * New upstream version 5.6
   * Drop patches applied upstream to fix spelling, run tests more verbosely
     and to build using standard strcpy instead of a local one
+  * Use new pkgconf name in dependency, which replaced pkg-config since Buster
 
  -- Otto Kekäläinen <otto@debian.org>  Mon, 12 Aug 2024 18:45:48 -0700
 
