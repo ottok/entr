@@ -15,10 +15,13 @@ Forwarded: not-needed
 +include Makefile.bsd
 --- a/configure
 +++ b/configure
-@@ -28,5 +28,6 @@ done
- case "${TARGET_OS:-`uname`}" in
- 	Darwin) copy_mk macos ;;
- 	Linux)  copy_mk linux ;;
-+	GNU/kFreeBSD) copy_mk kfreebsd ;;
- 	*)      copy_mk bsd ;;
- esac
+@@ -45,6 +45,9 @@ case "${TARGET_OS:-`uname`}" in
+ 	Linux)
+ 		test_libc_features && copy_mk linux || copy_mk linux-compat
+ 		;;
++	GNU/kFreeBSD)
++		copy_mk kfreebsd
++		;;
+ 	*)
+ 		copy_mk bsd
+ 		;;

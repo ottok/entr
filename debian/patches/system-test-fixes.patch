@@ -8,7 +8,7 @@ Author: Otto Kekäläinen <otto@debian.org>
 Forwarded: not-needed
 --- a/system_test.sh
 +++ b/system_test.sh
-@@ -115,13 +115,29 @@ try "spacebar triggers utility"
+@@ -188,13 +188,29 @@ try "spacebar triggers utility"
  # file system tests
  
  try "exec a command using one-shot option"

@@ -1,8 +1,11 @@
-entr (5.5-2) UNRELEASED; urgency=medium
+entr (5.6-1) UNRELEASED; urgency=medium
 
-  * Open new changelog entry. This will be replaced with 'gbp dch -avR'.
+  * Extend gbp.conf and write a README.source to document new upstream import
+  * New upstream version 5.6
+  * Drop patches applied upstream to fix spelling, run tests more verbosely
+    and to build using standard strcpy instead of a local one
 
- -- Otto Kekäläinen <otto@debian.org>  Mon, 12 Aug 2024 15:30:42 -0700
+ -- Otto Kekäläinen <otto@debian.org>  Mon, 12 Aug 2024 18:45:48 -0700
 
 entr (5.5-1) unstable; urgency=medium
 
