@@ -1,5 +1,12 @@
 = Release History
 
+== 5.6: July 1, 2024
+
+ - Process exit status messages using background awk scripts
+ - Use min(OPEN_MAX, rl.rlim_max) to set rlim_cur on MacOS
+ - Detect and use native strlcpy(3)
+ - Always build with GNU_SOURCE set on Linux
+
 == 5.5: November 17, 2023
 
  - Report correct error if open(3) fails
@@ -209,7 +216,7 @@
  - Changed function pointer prefixes from '_' to 'x' to avoid runtime symbol
    collisions in libc. Required to build on DragonFlyBSD
  - Add this NEWS file to provide detailed release history for port maintainers
- - Subsitute '/_' argument with the first file that changed
+ - Substitute '/_' argument with the first file that changed
  - Man page formatted with more semantically correct markup
  - Multiple events on the same file are merged on Linux to prevent duplicate
    writes to a named pipe
