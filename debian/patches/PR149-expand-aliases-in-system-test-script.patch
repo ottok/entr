@@ -1,0 +1,28 @@
+From: https://github.com/eradman/entr/pull/149
+Origin: https://patch-diff.githubusercontent.com/raw/eradman/entr/pull/149.patch
+From e2da955d86c70f51e58aa77b9b337b17666fbbb2 Mon Sep 17 00:00:00 2001
+Author: Otto Kekalainen <otto@debian.org>
+Date: Fri, 23 Aug 2024 13:36:31 -0700
+Subject: [PATCH] Expand aliases in shell script system_test.sh
+
+By default shell/bash does not use aliases. This can be verified by running
+'alias' after any alias setting commands, and see that it is empty.
+
+Activate shell option expand_aliases for the following alias lines to work
+correctly.
+
+--- a/system_test.sh
++++ b/system_test.sh
+@@ -73,10 +73,11 @@ then
+ fi
+ 
+ # local binary, non-interactive by default
+-
+ alias entr='./entr -n'
+ alias entr_tty='./entr'
+ 
++# alias expansion is not enabled by default in non-interactive Bourne Again Shell (bash) sessions
++command -v shopt > /dev/null && shopt -s expand_aliases
+ 
+ # show what version is being tested for easier to debug logs
+ echo "INFO: Using entr version:"

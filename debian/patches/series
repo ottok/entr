@@ -1,2 +1,3 @@
-system-test-fixes.patch
+system-test-skip-no-tty.patch
 system-test-with-system-binary.patch
+PR149-expand-aliases-in-system-test-script.patch
