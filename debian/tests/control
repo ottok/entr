@@ -5,11 +5,12 @@ Features: test-name=print-help-message
 
 Test-Command: ./system_test.sh
 Features: test-name=upstream-system-test
-Depends: file,
-         git,
-         procps,
-         tmux,
-         vim
+Depends:
+ file,
+ git,
+ procps,
+ tmux,
+ vim,
 Restrictions: build-needed allow-stderr
 # build-needed: The upstream test expects to find `./entr` as a file in current
 # path so therefore rebuild the package instead of testing just the downloaded

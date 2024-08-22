@@ -2,10 +2,12 @@ Source: entr
 Section: misc
 Priority: optional
 Maintainer: Yuri D'Elia <wavexx@thregr.org>
-Uploaders: Otto Kekäläinen <otto@debian.org>
-Build-Depends: debhelper-compat (= 13),
-               libbsd-dev,
-               pkg-config
+Uploaders:
+ Otto Kekäläinen <otto@debian.org>,
+Build-Depends:
+ debhelper-compat (= 13),
+ libbsd-dev,
+ pkg-config,
 Standards-Version: 4.6.2
 Rules-Requires-Root: no
 Homepage: https://eradman.com/entrproject/
@@ -14,8 +16,9 @@ Vcs-Browser: https://salsa.debian.org/debian/entr
 
 Package: entr
 Architecture: any
-Depends: ${misc:Depends},
-         ${shlibs:Depends}
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
 Description: Run arbitrary commands when files change
  The Event Notify Test Runner (entr) runs arbitrary commands when
  files change. Changes are detected through the kqueue/inotify
