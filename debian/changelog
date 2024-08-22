@@ -6,6 +6,8 @@ entr (5.6-1) UNRELEASED; urgency=medium
     and to build using standard strcpy instead of a local one
   * Use new pkgconf name in dependency, which replaced pkg-config since Buster
   * Add 'gawk' to autopkgtest dependencies
+  * Drop kFreeBSD patches that no longer cleanly apply and don't have a tester
+    or reviewer to help maintain
 
  -- Otto Kekäläinen <otto@debian.org>  Mon, 12 Aug 2024 18:45:48 -0700
 
