@@ -16,13 +16,9 @@
 
 #include <sys/param.h>
 #include <sys/resource.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <sys/event.h>
-
-#if defined(_MACOS_PORT)
-#include <sys/sysctl.h>
-#endif
 
 #include <dirent.h>
 #include <err.h>
@@ -40,7 +36,7 @@
 #include <unistd.h>
 
 #include "missing/compat.h"
-
+#include "status.h"
 #include "data.h"
 
 /* events to watch for */
@@ -52,10 +48,14 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define MEMBER_SIZE(S, M) sizeof(((S *)0)->M)
 
-/* globals */
+/* shared state */
 
 extern int optind;
+pid_t status_pid;
 WatchFile **files;
+
+/* globals */
+
 WatchFile *leading_edge;
 int child_pid;
 int child_status;
@@ -69,11 +69,13 @@ int oneshot_opt;
 int postpone_opt;
 int restart_opt;
 int shell_opt;
+int status_filter_opt;
 
 int termios_set;
 struct termios canonical_tty;
 
 static char *shell, *shell_base;
+static char *argv0, *argv0_base;
 
 /* forwards */
 
@@ -104,10 +106,7 @@ main(int argc, char *argv[]) {
 	int n_files;
 	int i;
 	struct kevent evSet;
-	unsigned open_max;
-
-	if (pledge("stdio rpath tty proc exec", NULL) == -1)
-		err(1, "pledge");
+	int open_max;
 
 	/* call usage() if no command is supplied */
 	if (argc < 2) usage();
@@ -139,9 +138,8 @@ main(int argc, char *argv[]) {
 #elif defined(_MACOS_PORT)
 	if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
 		err(1, "getrlimit");
-	size_t len = sizeof(open_max);
-	sysctlbyname("kern.maxfilesperproc", &open_max, &len, NULL, 0);
-	rl.rlim_cur = (rlim_t)open_max;
+	open_max = min(OPEN_MAX, rl.rlim_max);
+	rl.rlim_cur = open_max;
 	if (setrlimit(RLIMIT_NOFILE, &rl) != 0)
 		err(1, "setrlimit cannot set rlim_cur to %u", open_max);
 #else /* BSD */
@@ -167,6 +165,19 @@ main(int argc, char *argv[]) {
 	if (shell_base == NULL)
 		err(1, "cannot duplicate string");
 	shell_base = basename(shell_base);
+
+	/* initialize status filter */
+	if (shell_opt)
+		argv0 = shell;
+	else
+		argv0 = (argv+argv_index)[0];
+	argv0_base = basename(argv0);
+	if (status_filter_opt)
+		start_log_filter(status_filter_opt);
+
+	/* drop privileges */
+	if (pledge("stdio rpath tty proc exec", NULL) == -1)
+		err(1, "pledge");
 
 	/* sequential scan may depend on a 0 at the end */
 	files = calloc(open_max+1, sizeof(WatchFile *));
@@ -217,7 +228,7 @@ main(int argc, char *argv[]) {
 void
 usage() {
 	fprintf(stderr, "release: %s\n", RELEASE);
-	fprintf(stderr, "usage: entr [-acdnprsz] utility [argument [/_] ...] < filenames\n");
+	fprintf(stderr, "usage: entr [-acdnprsxz] utility [argument [/_] ...] < filenames\n");
 	exit(1);
 }
 
@@ -245,6 +256,9 @@ handle_exit(int sig) {
 
 	terminate_utility();
 
+	if (status_filter_opt)
+		end_log_filter();
+
 	if ((sig == SIGINT || sig == SIGHUP))
 		_exit(0);
 	else
@@ -256,20 +270,36 @@ proc_exit(int sig) {
 	int status;
 	int saved_errno = errno;
 
-	if ((!noninteractive_opt) && (termios_set))
-		tcsetattr(STDIN_FILENO, TCSADRAIN, &canonical_tty);
+	if (status_filter_opt && (terminating == 0)) {
+		if (waitpid(status_pid, &status, WNOHANG) > 0) {
+			if (WIFSIGNALED(status)) {
+				terminating = 1;
+				warnx("status process killed by signal");
+				kill(getpid(), SIGINT);
+			}
+			if (WIFEXITED(status)) {
+				terminating = 1;
+				warnx("status process terminated");
+				kill(getpid(), SIGINT);
+			}
+		}
+	}
 
-	if (wait(&status) != -1)
+	if (waitpid(child_pid, &status, 0) != -1) {
 		child_status = status;
 
-	if ((oneshot_opt == 1) && (terminating == 0)) {
-		if ((shell_opt == 1) && (restart_opt == 0))
-			print_child_status(child_status);
+		if ((!noninteractive_opt) && (termios_set))
+			tcsetattr(STDIN_FILENO, TCSADRAIN, &canonical_tty);
 
-		if WIFSIGNALED(child_status)
-			_exit(128 + WTERMSIG(child_status));
-		else
-			_exit(WEXITSTATUS(child_status));
+		if ((oneshot_opt == 1) && (terminating == 0)) {
+			if (restart_opt == 0)
+				print_child_status(child_status);
+
+			if (WIFSIGNALED(child_status))
+				_exit(128 + WTERMSIG(child_status));
+			else
+				_exit(WEXITSTATUS(child_status));
+		}
 	}
 	/* restore errno so that the resuming code is unimpacted. */
 	errno = saved_errno;
@@ -280,13 +310,15 @@ print_child_status(int status) {
 	int len;
 	char buf[2048];
 
-	if WIFSIGNALED(status)
-		len = snprintf(buf, sizeof(buf), "%s terminated by signal %d\n",
-		    shell_base, WTERMSIG(status));
-	else
-		len = snprintf(buf, sizeof(buf), "%s returned exit code %d\n",
-		    shell_base, WEXITSTATUS(status));
-	write(STDOUT_FILENO, buf, len);
+	if (status_filter_opt) {
+		if (WIFSIGNALED(status))
+			len = snprintf(buf, sizeof(buf), "signal|%d|%s\n",
+				WTERMSIG(status), argv0_base);
+		else
+			len = snprintf(buf, sizeof(buf), "exit|%d|%s\n",
+				WEXITSTATUS(status), argv0_base);
+		write_log_filter(buf, len);
+	}
 }
 
 /*
@@ -324,9 +356,8 @@ process_input(FILE *file, WatchFile *files[], int max_files) {
 		if (dirwatch_opt > 0) {
 			if (S_ISDIR(sb.st_mode) != 0)
 				path = &buf[0];
-			else
-				if ((path = dirname(buf)) == 0)
-					err(1, "dirname '%s' failed", buf);
+			else if ((path = dirname(buf)) == 0)
+				err(1, "dirname '%s' failed", buf);
 			for (matches=0, i=0; i<n_files; i++)
 				if (strcmp(files[i]->fn, path) == 0) matches++;
 			if (matches == 0) {
@@ -346,14 +377,15 @@ process_input(FILE *file, WatchFile *files[], int max_files) {
 	return n_files;
 }
 
-int list_dir(char *dir) {
+int
+list_dir(char *dir) {
 	struct dirent *dp;
 	DIR *dfd = opendir(dir);
 	int count = 0;
 
 	if (dfd == NULL)
 		errx(1, "unable to open directory: '%s'", dir);
-	while((dp = readdir(dfd)) != NULL)
+	while ((dp = readdir(dfd)) != NULL)
 		if ((dirwatch_opt == 2) || (dp->d_name[0] != '.'))
 			count++;
 	closedir(dfd);
@@ -371,7 +403,7 @@ set_options(char *argv[]) {
 
 	/* read arguments until we reach a command */
 	for (argc=1; argv[argc] != 0 && argv[argc][0] == '-'; argc++);
-	while ((ch = getopt(argc, argv, "acdnprsz")) != -1) {
+	while ((ch = getopt(argc, argv, "acdnprsXxz")) != -1) {
 		switch (ch) {
 		case 'a':
 			aggressive_opt = 1;
@@ -394,6 +426,9 @@ set_options(char *argv[]) {
 		case 's':
 			shell_opt = 1;
 			break;
+		case 'x':
+			status_filter_opt = status_filter_opt ? 2 : 1;
+			break;
 		case 'z':
 			oneshot_opt = 1;
 			break;
@@ -403,6 +438,10 @@ set_options(char *argv[]) {
 	}
 	if (argv[optind] == 0)
 		usage();
+
+	if (status_filter_opt && restart_opt)
+		errx(1, "-r and -x may not be combined");
+
 	if ((shell_opt == 1) && (argv[optind+1] != 0))
 		errx(1, "-s requires commands to be formatted as a single argument");
 	return optind;
@@ -438,7 +477,7 @@ run_utility(char *argv[]) {
 	}
 	else {
 		/* clone argv on each invocation to make the implementation of more
-		 * complex subsitution rules possible and easy
+		 * complex substitution rules possible and easy
 		 */
 		for (argc=0; argv[argc]; argc++);
 		arg_buf = malloc(ARG_MAX);
@@ -489,11 +528,10 @@ run_utility(char *argv[]) {
 	child_pid = pid;
 
 	if (restart_opt == 0 && oneshot_opt == 0) {
-		if (wait(&status) != -1)
+		if (waitpid(child_pid, &status, 0) != -1)
 			child_status = status;
 
-		if (shell_opt == 1)
-			print_child_status(child_status);
+		print_child_status(child_status);
 	}
 
 	free(arg_buf);
