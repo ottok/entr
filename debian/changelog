@@ -8,6 +8,7 @@ entr (5.6-1) UNRELEASED; urgency=medium
   * Add 'gawk' to autopkgtest dependencies
   * Drop kFreeBSD patches that no longer cleanly apply and don't have a tester
     or reviewer to help maintain
+  * Patch system test to be able to test the installed 'entr' binary
 
  -- Otto Kekäläinen <otto@debian.org>  Mon, 12 Aug 2024 18:45:48 -0700
 

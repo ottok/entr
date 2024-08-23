@@ -1,0 +1,19 @@
+Description: Patch system test to be able to test the installed 'entr' binary
+Author: Otto Kekäläinen <otto@debian.org>
+Forwarded: not-needed
+--- a/system_test.sh
++++ b/system_test.sh
+@@ -65,6 +65,13 @@ if [ $(uname) == 'Linux' ]; then
+ 	}
+ fi
+ 
++# required binary
++if [ ! -x ./entr ]
++then
++	echo "INFO: No ./entr binary found. Testing the system binary /usr/bin/entr instead."
++	ln -s /usr/bin/entr entr
++fi
++
+ # fast tests
+ 
+ try "no arguments"

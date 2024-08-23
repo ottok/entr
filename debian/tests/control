@@ -6,17 +6,14 @@ Features: test-name=print-help-message
 Test-Command: ./system_test.sh
 Features: test-name=upstream-system-test
 Depends:
+ entr,
  file,
  gawk,
  git,
  procps,
  tmux,
  vim,
-Restrictions: build-needed allow-stderr
-# build-needed: The upstream test expects to find `./entr` as a file in current
-# path so therefore rebuild the package instead of testing just the downloaded
-# binary like autopkgtests would normally do.
-#
+Restrictions: allow-stderr
 # allow-stderr: The upstream test runs git commands that always spits warnings
 # to standard error about git user and email not being set, so the normal
 # assumption of autopkgtests to not have any warnings must be exempted.
