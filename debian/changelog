@@ -1,4 +1,4 @@
-entr (5.6-1) UNRELEASED; urgency=medium
+entr (5.6-1) unstable; urgency=medium
 
   * Extend gbp.conf and write a README.source to document new upstream import
   * New upstream version 5.6
@@ -12,7 +12,7 @@ entr (5.6-1) UNRELEASED; urgency=medium
   * Patch upstream system test able to run without a tty and drop previous
     related patch that is now obsolete
 
- -- Otto Kekäläinen <otto@debian.org>  Mon, 12 Aug 2024 18:45:48 -0700
+ -- Otto Kekäläinen <otto@debian.org>  Mon, 02 Sep 2024 12:00:47 -0700
 
 entr (5.5-1) unstable; urgency=medium
 
