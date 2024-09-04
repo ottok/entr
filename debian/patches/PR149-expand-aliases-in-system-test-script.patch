@@ -1,9 +1,6 @@
-From: https://github.com/eradman/entr/pull/149
-Origin: https://patch-diff.githubusercontent.com/raw/eradman/entr/pull/149.patch
-From e2da955d86c70f51e58aa77b9b337b17666fbbb2 Mon Sep 17 00:00:00 2001
-Author: Otto Kekalainen <otto@debian.org>
+From: Otto Kekalainen <otto@debian.org>
 Date: Fri, 23 Aug 2024 13:36:31 -0700
-Subject: [PATCH] Expand aliases in shell script system_test.sh
+Subject: g-a  Expand aliases in shell script system_test.sh
 
 By default shell/bash does not use aliases. This can be verified by running
 'alias' after any alias setting commands, and see that it is empty.
@@ -11,6 +8,14 @@ By default shell/bash does not use aliases. This can be verified by running
 Activate shell option expand_aliases for the following alias lines to work
 correctly.
 
+Forwarded: https://github.com/eradman/entr/pull/149
+Origin: https://patch-diff.githubusercontent.com/raw/eradman/entr/pull/149.patch
+---
+ system_test.sh | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/system_test.sh b/system_test.sh
+index fb6247b..cb4fd5b 100755
 --- a/system_test.sh
 +++ b/system_test.sh
 @@ -73,10 +73,11 @@ then

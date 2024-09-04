@@ -1,13 +1,15 @@
-From: https://github.com/eradman/entr/commit/33ee6bae98f3b9cad41445a0645826cdd44c43ef
-Origin: https://github.com/eradman/entr/commit/33ee6bae98f3b9cad41445a0645826cdd44c43ef.patch
 From: Eric Radman <ericshane@eradman.com>
 Date: Fri, 23 Aug 2024 09:29:16 -0400
-Subject: [PATCH] Reorganize system tests to run without a TTY
+Subject: Reorganize system tests to run without a TTY
 
+Origin: upstream, https://github.com/eradman/entr/commit/33ee6bae98f3b9cad41445a0645826cdd44c43ef.patch
+Forwarded: https://github.com/eradman/entr/commit/33ee6bae98f3b9cad41445a0645826cdd44c43ef
 ---
- system_test.sh | 111 ++++++++++++++++++++++++++-----------------------
+ system_test.sh | 111 ++++++++++++++++++++++++++++++---------------------------
  1 file changed, 58 insertions(+), 53 deletions(-)
 
+diff --git a/system_test.sh b/system_test.sh
+index 45da6e6..2ac2384 100755
 --- a/system_test.sh
 +++ b/system_test.sh
 @@ -26,7 +26,7 @@ function assert {
@@ -102,7 +104,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	assert "$(cat $tmp/exec.err)" ""
  	assert "$(cat $tmp/exec.out)" "$(printf '= exit 1 =')"
-@@ -150,7 +155,7 @@ try "use custom status script with shell
+@@ -150,7 +155,7 @@ try "use custom status script with shell option and kill"
  	  print "=", $1, $2, "="
  	}
  	EOF
@@ -129,7 +131,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	echo 456 >> $tmp/file2 ; zz
  	wait $bgpid; assert "$?" "0"
-@@ -198,25 +203,25 @@ try "exec a command using one-shot optio
+@@ -198,25 +203,25 @@ try "exec a command using one-shot option"
  
  try "exec a command using one-shot option and return signal number"
  	setup
@@ -159,7 +161,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	wait $bgpid; assert "$?" "4"
  
-@@ -225,7 +230,7 @@ try "restart a server when a file is mod
+@@ -225,7 +230,7 @@ try "restart a server when a file is modified using one-shot option"
  	if [ $(uname) == 'Linux' ]; then
  		skip "GNU nc spins while retrying SELECT(2); busybox does not support domain sockets"
  	else
@@ -168,7 +170,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  		bgpid=$! ; zz
  		echo "123" | nc -NU $tmp/nc.s 2> /dev/null || {
  			echo "123" | nc -U $tmp/nc.s
-@@ -237,7 +242,7 @@ try "restart a server when a file is mod
+@@ -237,7 +242,7 @@ try "restart a server when a file is modified using one-shot option"
  
  try "exec a command in non-intertive mode"
  	setup
@@ -177,7 +179,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	kill -INT $bgpid
  	wait $bgpid; assert "$?" "0"
-@@ -245,7 +250,7 @@ try "exec a command in non-intertive mod
+@@ -245,7 +250,7 @@ try "exec a command in non-intertive mode"
  
  try "exec a command as a background task and ensure stdin is closed"
  	setup
@@ -186,7 +188,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	kill -INT $bgpid
  	wait $bgpid; assert "$?" "0"
-@@ -253,7 +258,7 @@ try "exec a command as a background task
+@@ -253,7 +258,7 @@ try "exec a command as a background task and ensure stdin is closed"
  
  try "exec a command as a background task, and verify that read from stdin doesn't complain"
  	setup
@@ -195,7 +197,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	kill -INT $bgpid
  	wait $bgpid; assert "$?" "0"
-@@ -261,7 +266,7 @@ try "exec a command as a background task
+@@ -261,7 +266,7 @@ try "exec a command as a background task, and verify that read from stdin doesn'
  
  try "exec single shell utility and exit when a file is added to an implicit watch path"
  	setup
@@ -204,7 +206,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	    || true &
  	bgpid=$! ; zz
  	touch $tmp/newfile
-@@ -271,7 +276,7 @@ try "exec single shell utility and exit
+@@ -271,7 +276,7 @@ try "exec single shell utility and exit when a file is added to an implicit watc
  
  try "exec single shell utility and exit when a subdirectory is added"
  	setup
@@ -213,7 +215,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	    || true &
  	bgpid=$! ; zz
  	mkdir $tmp/newdir
-@@ -282,7 +287,7 @@ try "exec single shell utility and exit
+@@ -282,7 +287,7 @@ try "exec single shell utility and exit when a subdirectory is added"
  
  try "exec single shell utility and exit when a hidden subdirectory is added"
  	setup
@@ -222,7 +224,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	    || true &
  	bgpid=$! ; zz
  	mkdir $tmp/.newdir
-@@ -293,7 +298,7 @@ try "exec single shell utility and exit
+@@ -293,7 +298,7 @@ try "exec single shell utility and exit when a hidden subdirectory is added"
  
  try "exec single shell utility and exit when a file is added to a specific path"
  	setup
@@ -231,7 +233,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	    || true &
  	bgpid=$! ; zz
  	touch $tmp/newfile
-@@ -303,7 +308,7 @@ try "exec single shell utility and exit
+@@ -303,7 +308,7 @@ try "exec single shell utility and exit when a file is added to a specific path"
  
  try "do nothing when a file not monitored is changed in directory watch mode"
  	setup
@@ -240,7 +242,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	echo "123" > $tmp/file1
  	kill -INT $bgpid
-@@ -313,7 +318,7 @@ try "do nothing when a file not monitore
+@@ -313,7 +318,7 @@ try "do nothing when a file not monitored is changed in directory watch mode"
  
  try "exec utility when a file is written by Vim in directory watch mode"
  	setup
@@ -249,7 +251,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	vim -e -s -u NONE -N \
  	    -c ":r!date" \
-@@ -326,7 +331,7 @@ try "exec utility when a file is written
+@@ -326,7 +331,7 @@ try "exec utility when a file is written by Vim in directory watch mode"
  try "exec utility when a file is opened for write and then closed"
  	setup
  	echo "---" > $tmp/file1
@@ -258,7 +260,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	: > $tmp/file1 ; zz
  	kill -INT $bgpid
-@@ -353,7 +358,7 @@ try "exec single utility when an entire
+@@ -353,7 +358,7 @@ try "exec single utility when an entire stash of files is reverted"
  			echo "" >> $f
  		done
  		cd - > /dev/null ; zz
@@ -267,7 +269,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  		bgpid=$! ; zz
  		cd $tmp
  		git checkout *.h -q
-@@ -365,7 +370,7 @@ try "exec single utility when an entire
+@@ -365,7 +370,7 @@ try "exec single utility when an entire stash of files is reverted"
  
  try "exec utility when a file is written by Vim"
  	setup
@@ -276,7 +278,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	vim -e -s -u NONE -N \
  	    -c ":r!date" \
-@@ -376,7 +381,7 @@ try "exec utility when a file is written
+@@ -376,7 +381,7 @@ try "exec utility when a file is written by Vim"
  
  try "exec shell utility when a file is written by Vim with 'backup'"
  	setup
@@ -285,7 +287,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	vim -e -s -u NONE -N \
  	    -c ":set backup" \
-@@ -388,7 +393,7 @@ try "exec shell utility when a file is w
+@@ -388,7 +393,7 @@ try "exec shell utility when a file is written by Vim with 'backup'"
  
  try "exec shell utility when a file is written by Vim with 'nowritebackup'"
  	setup
@@ -294,7 +296,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	vim -e -s -u NONE -N \
  	    -c ":set nowritebackup" \
-@@ -401,7 +406,7 @@ try "exec shell utility when a file is w
+@@ -401,7 +406,7 @@ try "exec shell utility when a file is written by Vim with 'nowritebackup'"
  try "restart a server when a file is modified"
  	setup
  	echo "started." > $tmp/file1
@@ -303,7 +305,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	assert "$(cat $tmp/exec.out)" "started."
  	echo 456 >> $tmp/file2 ; zz
-@@ -417,7 +422,7 @@ try "ensure that all shell subprocesses
+@@ -417,7 +422,7 @@ try "ensure that all shell subprocesses are terminated in restart mode"
  	echo "running"; sleep 10
  	SCRIPT
  	chmod +x $tmp/go.sh
@@ -312,7 +314,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	kill -INT $bgpid ; zz
  	assert "$(cat $tmp/exec.out)" "$(printf 'running\ncaught signal')"
-@@ -430,7 +435,7 @@ try "ensure that all shell subprocesses
+@@ -430,7 +435,7 @@ try "ensure that all shell subprocesses are terminated when terminal is closed"
  	echo "running"; sleep 10
  	SCRIPT
  	chmod +x $tmp/go.sh
@@ -321,7 +323,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	kill -HUP $bgpid ; zz
  	assert "$(cat $tmp/exec.out)" "$(printf 'running\ncaught signal')"
-@@ -438,7 +443,7 @@ try "ensure that all shell subprocesses
+@@ -438,7 +443,7 @@ try "ensure that all shell subprocesses are terminated when terminal is closed"
  try "exit with no action when restart and dirwatch flags are combined"
  	setup
  	echo "started." > $tmp/file1
@@ -330,7 +332,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	assert "$(cat $tmp/exec.out)" "started."
  	touch $tmp/newfile
-@@ -449,7 +454,7 @@ try "exit with no action when restart an
+@@ -449,7 +454,7 @@ try "exit with no action when restart and dirwatch flags are combined"
  try "exec single shell utility when two files change simultaneously"
  	setup
  	ln $tmp/file1 $tmp/file3
@@ -339,7 +341,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	echo 456 >> $tmp/file1 ; zz
  	kill -INT $bgpid
-@@ -458,7 +463,7 @@ try "exec single shell utility when two
+@@ -458,7 +463,7 @@ try "exec single shell utility when two files change simultaneously"
  
  try "exec single shell utility on startup and when a file is changed"
  	setup
@@ -348,7 +350,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	echo 456 >> $tmp/file1 ; zz
  	kill -INT $bgpid
-@@ -467,7 +472,7 @@ try "exec single shell utility on startu
+@@ -467,7 +472,7 @@ try "exec single shell utility on startup and when a file is changed"
  
  try "exec a command if a file is made executable"
  	setup
@@ -357,7 +359,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	chmod +x $tmp/file2 ; zz
  	kill -INT $bgpid
-@@ -477,7 +482,7 @@ try "exec a command if a file is made ex
+@@ -477,7 +482,7 @@ try "exec a command if a file is made executable"
  try "ensure watches operate on a running executable"
  	setup
  	cp /bin/sleep $tmp/
@@ -366,7 +368,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	    > $tmp/exec.out 2> /dev/null &
  	bgpid=$! ; zz
  	cp -f /bin/sleep $tmp/ ; zz
-@@ -488,7 +493,7 @@ try "ensure watches operate on a running
+@@ -488,7 +493,7 @@ try "ensure watches operate on a running executable"
  
  try "exec a command using the first file to change"
  	setup
@@ -375,7 +377,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	echo 456 > $tmp/file1 ; zz
  	kill -INT $bgpid
-@@ -497,7 +502,7 @@ try "exec a command using the first file
+@@ -497,7 +502,7 @@ try "exec a command using the first file to change"
  
  try "exec single shell utility using utility substitution"
  	setup
@@ -384,7 +386,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	echo 456 >> $tmp/file2; zz
  	kill -INT $bgpid
-@@ -507,7 +512,7 @@ try "exec single shell utility using uti
+@@ -507,7 +512,7 @@ try "exec single shell utility using utility substitution"
  try "watch and exec a program that is overwritten"
  	setup
  	touch $tmp/script; chmod 755 $tmp/script
@@ -393,7 +395,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	cat > $tmp/script <<-EOF
  	#!/bin/sh
-@@ -519,20 +524,20 @@ try "watch and exec a program that is ov
+@@ -519,20 +524,20 @@ try "watch and exec a program that is overwritten"
  
  try "exec an interactive utility when a file changes"
  	setup
@@ -429,7 +431,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	zz
  	echo 456 >> $tmp/file2 ; zz
  	assert "$(cat $tmp/exec.err)" ""
-@@ -552,7 +557,7 @@ try "exec a command as a background task
+@@ -552,7 +557,7 @@ try "exec a command as a background task"
  
  try "respond to events that occur while the utility is running"
  	setup
@@ -438,7 +440,7 @@ Subject: [PATCH] Reorganize system tests to run without a TTY
  	bgpid=$! ; zz
  	echo "123" > $tmp/file1
  	sleep 1
-@@ -568,7 +573,7 @@ try "ensure that all subprocesses are te
+@@ -568,7 +573,7 @@ try "ensure that all subprocesses are terminated in restart mode when a file is
  	echo "running"; sleep 10
  	SCRIPT
  	chmod +x $tmp/go.sh
