@@ -1,0 +1,33 @@
+From: =?utf-8?b?T3R0byBLZWvDpGzDpGluZW4=?= <otto@debian.org>
+Date: Sat, 7 Sep 2024 16:41:09 -0700
+Subject: Include local strlcpy
+
+On Debian Bookworm and Bullseye the build fails as it is unable to find
+'strlcpy'. Include if like older versions of Entr did to fix build error:
+
+    cc -g -O2 -ffile-prefix-map=/tmp/build/source=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -D_GNU_SOURCE -D_LINUX_PORT -Imissing -o entr compat.o status.o entr.o -Wl,-z,relro -Wl,-z,now
+    /usr/bin/ld: entr.o: in function `process_input':
+    ././entr.c:348: undefined reference to `strlcpy'
+    /usr/bin/ld: ././entr.c:365: undefined reference to `strlcpy'
+    /usr/bin/ld: entr.o: in function `run_utility':
+    ././entr.c:492: undefined reference to `strlcpy'
+    /usr/bin/ld: status.o: in function `xdirname':
+    ././status.c:105: undefined reference to `strlcpy'
+    /usr/bin/ld: ././status.c:105: undefined reference to `strlcpy'
+    collect2: error: ld returned 1 exit status
+    make[1]: *** [Makefile.bsd:15: entr] Error 1
+---
+ Makefile.linux | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile.linux b/Makefile.linux
+index 080ad34..fa6f19e 100644
+--- a/Makefile.linux
++++ b/Makefile.linux
+@@ -1,5 +1,5 @@
+ CPPFLAGS += -D_GNU_SOURCE -D_LINUX_PORT -Imissing
+ MANPREFIX ?= ${PREFIX}/share/man
+-EXTRA_SRC = missing/kqueue_inotify.c
++EXTRA_SRC = missing/kqueue_inotify.c missing/strlcpy.c
+ 
+ include Makefile.bsd
