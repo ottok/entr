@@ -72,10 +72,7 @@ build bullseye-backports:
   variables:
     RELEASE: bullseye-backports
 
-build stretch-backports:
-  extends: .build-package
-  variables:
-    RELEASE: stretch-backports
+# Stretch-backports can not be enabled as it is too old for debhelper 13
 
 .test-prepare-container: &test-prepare-container |
   # Change directory to ./debian/output where build artifacts can be found
