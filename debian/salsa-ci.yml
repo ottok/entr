@@ -260,3 +260,9 @@ upgrade from stretch:
       deb http://archive.debian.org/debian-security stretch/updates main
       EOF
     - *test-upgrade
+
+logging-test:
+    stage: build
+    image: debian:sid-slim
+    script:
+      - ./debian/salsa-ci-subscript.sh
