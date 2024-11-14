@@ -3,8 +3,6 @@ include:
 
 variables:
   RELEASE: experimental
-  # riscv64 builds on experimental fail on "registry.salsa.debian.org/salsa-ci-team/pipeline/riscv64/base:experimental not found"
-  SALSA_CI_DISABLE_BUILD_PACKAGE_RISCV64: 1
 
 stages:
   - provisioning
@@ -33,10 +31,7 @@ build armhf:
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
 
-build riscv64:
-  extends: .build-package-riscv64
-  rules:
-    - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+# riscv64 builds on experimental fail on "registry.salsa.debian.org/salsa-ci-team/pipeline/riscv64/base:experimental not found"
 
 .test-prepare-container: &test-prepare-container |
   # Change directory to ./debian/output where build artifacts can be found
