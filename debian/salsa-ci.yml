@@ -2,6 +2,7 @@ include:
   - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
 
 variables:
+  RELEASE: experimental
   # riscv64 builds on experimental fail on "registry.salsa.debian.org/salsa-ci-team/pipeline/riscv64/base:experimental not found"
   SALSA_CI_DISABLE_BUILD_PACKAGE_RISCV64: 1
 
@@ -51,6 +52,7 @@ build riscv64:
   # Prime the apt cache so later apt commands can run
   apt-get update -q
 
+# Sid, with experimental overlayed on top
 .test-enable-sid-repos: &test-enable-sid-repos
   # Skip this section if already in Sid
   - |
@@ -61,7 +63,8 @@ build riscv64:
       # Install tools that may be needed to circumvent issues in the upgrade
       apt-get install -qq --yes --no-install-recommends ca-certificates curl
       # Replace any old repos with just Sid, and trust blindly as old Debian releases won't have latest Sid in their keyring
-      echo 'deb [trusted=yes] http://deb.debian.org/debian sid main' > /etc/apt/sources.list
+      echo 'deb [trusted=yes] http://deb.debian.org/debian sid main contrib non-free non-free-firmware' > /etc/apt/sources.list
+      echo 'deb [trusted=yes] http://deb.debian.org/debian experimental main contrib non-free non-free-firmware" > /etc/apt/sources.list.d/experimental.list
       apt-get update -q
     fi
   # Upgrade minimal stack first
