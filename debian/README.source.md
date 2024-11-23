@@ -15,8 +15,7 @@ run them with `--verbose` and read the respective man pages for details.
 To get the Debian packaging source code and have the upstream remote alongside
 it, simply run:
 
-    gbp clone vcsgit:entr \
-      --postclone="git remote add -t master -f upstreamvcs https://github.com/eradman/entr.git"
+    gbp clone vcsgit:entr --add-upstream-vcs
 
 Using the `vcsgit:`prefix will automatically resolve the git repository
 location, which for most packages is on salsa.debian.org. To build the package
@@ -25,9 +24,15 @@ one needs all three Debian branches (`debian/latest`, `upstream/latest`and
 automatically fetched.
 
 The command above also automatically adds the upstream repository as an extra
-remote, and fetches the latest upstream `master` branch commits and tags. The
-upstream development branch is not a requirement to build the Debian package,
-but is recommended for making collaboration with upstream easy.
+remote called `upstreamvcs`, and fetches the latest upstream `master` branch
+commits and tags. The upstream development branch is not a requirement to build
+the Debian package, but is recommended for making collaboration with upstream
+easy.
+
+On older git-buildpackage versions the `--add-upstream-vcs` might not yet work,
+but you can achieve the same with manually running:
+
+    git remote add -t master -f upstreamvcs https://github.com/eradman/entr.git
 
 The repository structure and use of `gbp pq` makes it easy to cherry-pick
 commits between upstream and downstream Debian, ensuring improvements downstream
@@ -39,7 +44,7 @@ in Debian and upstream in the original project are shared frictionlessly.
 If you have an existing local repository created in this way, you can update it
 by simply running:
 
-    gbp pull --redo-pq
+    gbp pull --verbose
 
 To also get the upstream remote updated run:
 
@@ -66,7 +71,7 @@ Do your code changes, commit and push to your repository:
 
     git checkout -b bugfix/123456-fix-something
     git commit # or `git citool`
-    git push --set-upstream otto
+    git push --set-upstream otto bugfix/123456-fix-something
 
 If made further modifications, and need to update your submission, run:
 
@@ -98,18 +103,24 @@ code must be done as a patch in the `debian/patches/` subdirectory, which is
 then applied on upstream source code at build-time.
 
 Instead of manually fiddling with patch files, the recommended way to update
-them is using `gbp pq`. Start by switching to the temporary patches-applied
-branch by running:
+them is using `gbp pq`. Start by deleting any remnants of an old temporary patch
+queue branch, and import latest `debian/patches` contents and switch to a
+temporary patches-applied branch by running:
 
-    gbp pq switch
+    gbp pq drop && gbp pq import
     # Make changes, build, test
     git commit -a --amend # or `git citool --amend`
 
 If your terminal prompt shows the git branch, you will see it change from e.g.
-`debian/latest` to `patch-queue/debian/latest`. On this branch do whatever
-modification you want. Still on this branch, build the sources and Debian
-package and test that everything works. When done, convert the commit to a
-correctly formatted patch file by running:
+`debian/latest` to `patch-queue/debian/latest`. You can do whatever modification
+you want on _this patches-applied branch_, such as add commits, cherry-pick,
+rebase or whatever. Just keep in mind that for each commit you will eventually
+have a file in `debian/patches` in the final Debian packaging sources. There is
+no need to switch back to the "real" branch as you can build and test that
+everything works on this same branch effortlessly.
+
+Only when finally done, convert the patch-queue commits back to a correctly
+formatted patch file by running:
 
     gbp pq export
     git commit -a --amend # or `git citool --amend`
@@ -141,13 +152,15 @@ repository.
 
 To check for new upstream releases run:
 
+    gbp pq drop && gbp pq import
+    # Note branch name where the temporary patch-queue will be waiting
     git fetch --verbose upstream master
     # Note latest tag, e.g. 5.6
     gbp import-orig --uscan
     gbp dch --distribution=UNRELEASED \
-      --commit --commit-msg="Update changelog and refresh patches after %(version)s import" \
+      --commit --commit-msg="Update changelog and refresh patches after %(upstreamversion)s import" \
       -- debian
-    gbp pq rebase
+    gbp pq rebase # or manually switch to patch-queue branch and use regular `git rebase`
     gbp pq export
     git commit -a --amend # or `git citool --amend`
 
