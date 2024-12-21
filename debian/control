@@ -1,7 +1,7 @@
 Source: entr
 Section: misc
 Priority: optional
-Maintainer: Yuri D'Elia <wavexx@thregr.org>
+Maintainer: Otto Kekäläinen <otto@debian.org>
 Uploaders:
  Otto Kekäläinen <otto@debian.org>,
 Build-Depends:
