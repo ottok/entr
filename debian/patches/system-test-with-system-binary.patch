@@ -4,14 +4,14 @@ Subject: Patch system test to be able to test the installed 'entr' binary
 
 Forwarded: not-needed
 ---
- system_test.sh | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ system_test.sh | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
 diff --git a/system_test.sh b/system_test.sh
-index 2ac2384..fb6247b 100755
+index 34f6858..b10ed06 100755
 --- a/system_test.sh
 +++ b/system_test.sh
-@@ -65,11 +65,23 @@ if [ $(uname) == 'Linux' ]; then
+@@ -52,6 +52,13 @@ if [ $(uname) == 'Linux' ]; then
  	}
  fi
  
@@ -23,11 +23,12 @@ index 2ac2384..fb6247b 100755
 +fi
 +
  # local binary, non-interactive by default
- 
  alias entr='./entr -n'
  alias entr_tty='./entr'
+@@ -59,6 +66,10 @@ alias entr_tty='./entr'
+ # alias expansion is not enabled by default in non-interactive Bourne Again Shell (bash) sessions
+ command -v shopt > /dev/null && shopt -s expand_aliases
  
-+
 +# show what version is being tested for easier to debug logs
 +echo "INFO: Using entr version:"
 +entr || true
