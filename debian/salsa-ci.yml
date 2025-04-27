@@ -46,6 +46,16 @@ build armhf:
 #   rules:
 #     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
 
+build bookworm-backports:
+  extends: .build-package
+  variables:
+    RELEASE: bookworm-backports
+
+build bullseye-backports:
+  extends: .build-package
+  variables:
+    RELEASE: bullseye-backports
+
 .test-prepare-container: &test-prepare-container |
   # Change directory to ./debian/output where build artifacts can be found
   cd ${WORKING_DIR}
