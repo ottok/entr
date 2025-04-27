@@ -10,6 +10,12 @@ variables:
   SALSA_CI_ENABLE_ATOMIC_REPROTEST: 0
   SALSA_CI_ENABLE_BUILD_PACKAGE_PROFILES: 1
   BUILD_PROFILES: nocheck,nodoc
+  # Enable more architectures
+  SALSA_CI_DISABLE_BUILD_PACKAGE_ARMEL: 0
+  SALSA_CI_DISABLE_BUILD_PACKAGE_ARMHF: 0
+  SALSA_CI_DISABLE_BUILD_PACKAGE_ARM64: 0
+  # Enable cross-builds
+  SALSA_CI_DISABLE_CROSSBUILD_ARM64: 0
 
 stages:
   - provisioning
@@ -21,9 +27,6 @@ stages:
 
 # Additional builds on arm64 only when in main project as only it has runners
 # available in https://salsa.debian.org/groups/debian/-/runners
-# Don't use the SALSA_CI_DISABLE_BUILD_PACKAGE_ARM64 & co tags, as they don't
-# have this logic for testing group name and will end up making all pipelines
-# in forks stuck forever.
 build arm64:
   extends: .build-package-arm64
   rules:
@@ -44,6 +47,26 @@ build armhf:
 #   extends: .build-package-riscv64
 #   rules:
 #     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+
+# Cross-builds
+
+# Customize stage to diverge from Salsa CI 'test'
+test-crossbuild-arm64:
+  stage: build
+
+# Custom cross-build architecture not in Salsa CI
+test-crossbuild-armhf:
+  stage: build
+  extends: .test-crossbuild-package-arm64
+  variables:
+    HOST_ARCH: armhf
+
+# Custom cross-build architecture not in Salsa CI
+test-crossbuild-armel:
+  stage: build
+  extends: .test-crossbuild-package-arm64
+  variables:
+    HOST_ARCH: armel
 
 # Backports
 
