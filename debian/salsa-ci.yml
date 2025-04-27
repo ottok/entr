@@ -40,10 +40,11 @@ build armhf:
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
 
-build riscv64:
-  extends: .build-package-riscv64
-  rules:
-    - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+# Temporairly disabled as riscv64 builders are offline
+# build riscv64:
+#   extends: .build-package-riscv64
+#   rules:
+#     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
 
 .test-prepare-container: &test-prepare-container |
   # Change directory to ./debian/output where build artifacts can be found
