@@ -54,6 +54,15 @@ build riscv64:
   echo -e '#!/bin/sh\necho "N 5"' > /sbin/runlevel; chmod +x /sbin/runlevel
   # Avoid the warnings of "debconf: unable to initialize frontend: Dialog"
   echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+  # Ensure dpkg does not ask questions
+  export DEBIAN_FRONTEND=noninteractive
+  # Ensure dpkg does not stop to ask if config files should be kept, but instead
+  # just installs the maintainer version from the new package
+  cat > /etc/apt/apt.conf.d/99force-confnew <<EOF
+  Dpkg::Options {
+    "--force-confnew";
+  };
+  EOF
   # Emit non-zero exit code also on warnings to ensure CI stops on any issue
   echo 'APT::Update::Error-Mode "any";' > /etc/apt/apt.conf.d/non-zero-exit-on-warnings
   # In CI runs we do not enforce strict supply-chain security and thus expired
