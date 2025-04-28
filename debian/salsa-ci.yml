@@ -82,7 +82,7 @@ build riscv64:
       # Install tools that may be needed to circumvent issues in the upgrade
       apt-get install -qq --yes --no-install-recommends ca-certificates curl
       # Replace any old repos with just Sid, and trust blindly as old Debian releases won't have latest Sid in their keyring
-      echo 'deb [trusted=yes] http://deb.debian.org/debian sid main' > /etc/apt/sources.list
+      echo 'deb http://deb.debian.org/debian sid main' > /etc/apt/sources.list
       apt-get update -q
     fi
   # Upgrade minimal stack first
@@ -202,7 +202,7 @@ build riscv64:
   apt-get install -qq --yes apt-utils
   apt-ftparchive packages . > Packages
   apt-ftparchive release . > Release
-  echo "deb [trusted=yes] file:$(pwd) ./" > /etc/apt/sources.list.d/local.list
+  echo "deb file:$(pwd) ./" > /etc/apt/sources.list.d/local.list
   apt-get update -q
 
 .test-upgrade: &test-upgrade
