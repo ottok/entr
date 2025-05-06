@@ -17,6 +17,7 @@ stages:
   - provisioning
   - build
   - test
+  - upgrade package
   - upgrade package and distro
   - publish  # Stage referenced by Salsa CI template aptly stanza, so must exist even though not used
 
@@ -55,6 +56,8 @@ build bullseye-backports:
   extends: .build-package
   variables:
     RELEASE: bullseye-backports
+
+# Debian Stretch too old for debhelper-compat (= 13)
 
 .test-prepare-container: &test-prepare-container |
   # Change directory to ./debian/output where build artifacts can be found
@@ -259,7 +262,20 @@ build bullseye-backports:
   echo "deb file:$(pwd) ./" > /etc/apt/sources.list.d/local.list
   apt-get update -q
 
-.test-upgrade: &test-upgrade
+.test-upgrade-package: &test-upgrade-package
+  - *test-prepare-container
+  - apt-get install -q --yes entr
+  - dpkg -l entr
+  - *test-enable-artifacts-repo
+  - apt-get upgrade -q --simulate
+  - apt-get upgrade -qq --yes
+  - >
+    dpkg -l | grep entr | grep salsaci || {
+      echo "ERROR! Entr was not upgraded as expexted to CI version"
+      exit 1
+    }
+
+.test-upgrade-package-and-distro: &test-upgrade-package-and-distro
   - *test-prepare-container
   - apt-get install -q --yes entr
   - dpkg -l entr
@@ -279,31 +295,62 @@ build bullseye-backports:
       exit 1
     }
 
+upgrade in sid:
+  stage: upgrade package
+  needs:
+    - job: build
+  image: debian:sid
+  script:
+    - *test-upgrade-package
+
+upgrade in bookworm:
+  stage: upgrade package
+  needs:
+    - job: build bookworm-backports
+  image: debian:bookworm
+  script:
+    - *test-upgrade-package
+
+upgrade in bullseye:
+  stage: upgrade package
+  needs:
+    - job: build bullseye-backports
+  image: debian:bullseye
+  script:
+    - *test-upgrade-package
+
+upgrade from trixie:
+  stage: upgrade package and distro
+  image: debian:trixie
+  script:
+    - *test-upgrade-package-and-distro
+
 upgrade from bookworm:
   stage: upgrade package and distro
   image: debian:bookworm
   script:
-    - *test-upgrade
+    - *test-upgrade-package-and-distro
 
 upgrade from bullseye:
   stage: upgrade package and distro
   image: debian:bullseye
   script:
-    - *test-upgrade
+    - *test-upgrade-package-and-distro
 
 upgrade from buster:
   stage: upgrade package and distro
   image: debian:buster
   script:
-    - *test-upgrade
+    - *test-upgrade-package-and-distro
 
 upgrade from stretch:
   stage: upgrade package and distro
   image: debian:stretch
-  script:
+  before_script:
     - |
       cat > /etc/apt/sources.list <<EOF
       deb http://archive.debian.org/debian stretch main
       deb http://archive.debian.org/debian-security stretch/updates main
       EOF
-    - *test-upgrade
+  script:
+    - *test-upgrade-package-and-distro
