@@ -281,12 +281,14 @@ build bullseye-backports:
   - dpkg -l entr
   - *test-enable-sid-repos
   - *test-enable-artifacts-repo
-  - apt-get upgrade -qq --simulate
+  # Avoid `-qq` in simulate, as on errors it would not show any context info
+  - apt-get upgrade -q --simulate
   - apt-get upgrade -qq --yes
   # Extra fix needed in upgrades from Bullseye or older, as the previous step
   # installs grep only in new path /usr/bin/grep
   - test -f /bin/grep || cp -av /usr/bin/grep /bin/
-  - apt-get full-upgrade -qq --simulate
+  # Avoid `-qq` in simulate, as on errors it would not show any context info
+  - apt-get full-upgrade -q --simulate
   - apt-get full-upgrade -qq --yes
   - >
     dpkg -l | grep entr | grep salsaci || {
