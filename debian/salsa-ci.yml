@@ -3,6 +3,14 @@
 include:
   - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
 
+# Override Salsa CI defaults with Entr specific variations
+variables:
+  SALSA_CI_AUTOPKGTEST_ALLOWED_EXIT_STATUS: 0
+  SALSA_CI_DISABLE_BUILD_PACKAGE_TWICE: 0
+  SALSA_CI_ENABLE_ATOMIC_REPROTEST: 0
+  SALSA_CI_ENABLE_BUILD_PACKAGE_PROFILES: 1
+  BUILD_PROFILES: nocheck,nodoc
+
 stages:
   - provisioning
   - build
