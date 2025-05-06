@@ -9,6 +9,9 @@ stages:
   - test  # Stage referenced by Salsa CI template reprotest stanza, so must exist
   - upgrade package
   - upgrade package and distro
+  - build (Ubuntu)
+  - upgrade package (Ubuntu)
+  - upgrade package and distro (Ubuntu)
   - publish  # Stage referenced by Salsa CI template aptly stanza, so must exist even though not used
 
 # Additional builds on arm64 only when in main project as only it has runners
@@ -56,6 +59,42 @@ build bookworm-backports:
     RELEASE: bookworm-backports
 
 # Debian Stretch too old for debhelper-compat (= 13)
+
+# Ubuntu
+
+build questing:
+  extends: .build-package
+  stage: build (Ubuntu)
+  variables:
+    VENDOR: ubuntu
+    RELEASE: questing
+    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
+
+build plucky:
+  extends: .build-package
+  stage: build (Ubuntu)
+  variables:
+    VENDOR: ubuntu
+    RELEASE: plucky
+    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
+
+build noble:
+  extends: .build-package
+  stage: build (Ubuntu)
+  variables:
+    VENDOR: ubuntu
+    RELEASE: noble
+    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
+
+build jammy:
+  extends: .build-package
+  stage: build (Ubuntu)
+  variables:
+    VENDOR: ubuntu
+    RELEASE: jammy
+    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
+
+# Ubuntu Focal too old for debhelper-compat (= 13)
 
 # Define snippets used to construct jobs
 
@@ -355,6 +394,38 @@ upgrade in bookworm:
   script:
     - *test-upgrade-package
 
+upgrade in questing:
+  stage: upgrade package (Ubuntu)
+  needs:
+    - job: build questing
+  image: ubuntu:questing
+  script:
+    - *test-upgrade-package
+
+upgrade in plucky:
+  stage: upgrade package (Ubuntu)
+  needs:
+    - job: build plucky
+  image: ubuntu:plucky
+  script:
+    - *test-upgrade-package
+
+upgrade in noble:
+  stage: upgrade package (Ubuntu)
+  needs:
+    - job: build noble
+  image: ubuntu:noble
+  script:
+    - *test-upgrade-package
+
+upgrade in jammy:
+  stage: upgrade package (Ubuntu)
+  needs:
+    - job: build jammy
+  image: ubuntu:jammy
+  script:
+    - *test-upgrade-package
+
 upgrade from trixie:
   stage: upgrade package and distro
   image: debian:trixie
@@ -382,5 +453,35 @@ upgrade from buster:
 upgrade from stretch:
   stage: upgrade package and distro
   image: debian:stretch
+  script:
+    - *test-upgrade-package-and-distro
+
+upgrade from questing:
+  stage: upgrade package and distro (Ubuntu)
+  image: ubuntu:questing
+  script:
+    - *test-upgrade-package-and-distro
+
+upgrade from plucky:
+  stage: upgrade package and distro (Ubuntu)
+  image: ubuntu:plucky
+  script:
+    - *test-upgrade-package-and-distro
+
+upgrade from noble:
+  stage: upgrade package and distro (Ubuntu)
+  image: ubuntu:noble
+  script:
+    - *test-upgrade-package-and-distro
+
+upgrade from jammy:
+  stage: upgrade package and distro (Ubuntu)
+  image: ubuntu:jammy
+  script:
+    - *test-upgrade-package-and-distro
+
+upgrade from focal:
+  stage: upgrade package and distro (Ubuntu)
+  image: ubuntu:focal
   script:
     - *test-upgrade-package-and-distro
