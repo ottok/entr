@@ -14,7 +14,7 @@ include:
   - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
 
 variables:
-  SALSA_CI_ENABLE_STATS: 1
+  SALSA_CI_ENABLE_STATS: 0
 
 stages:
   - provisioning
