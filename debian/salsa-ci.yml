@@ -39,15 +39,15 @@ build armhf:
 
 # Backports
 
+build trixie-backports:
+  extends: .build-package
+  variables:
+    RELEASE: trixie-backports
+
 build bookworm-backports:
   extends: .build-package
   variables:
     RELEASE: bookworm-backports
-
-build bullseye-backports:
-  extends: .build-package
-  variables:
-    RELEASE: bullseye-backports
 
 # Debian Stretch too old for debhelper-compat (= 13)
 
@@ -333,19 +333,19 @@ upgrade in sid:
   script:
     - *test-upgrade-package
 
+upgrade in trixie:
+  stage: upgrade package
+  needs:
+    - job: build trixie-backports
+  image: debian:trixie
+  script:
+    - *test-upgrade-package
+
 upgrade in bookworm:
   stage: upgrade package
   needs:
     - job: build bookworm-backports
   image: debian:bookworm
-  script:
-    - *test-upgrade-package
-
-upgrade in bullseye:
-  stage: upgrade package
-  needs:
-    - job: build bullseye-backports
-  image: debian:bullseye
   script:
     - *test-upgrade-package
 
