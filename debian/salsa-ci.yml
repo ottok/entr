@@ -1,7 +1,13 @@
 ---
 # Include Salsa CI as a base
 include:
-  - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
+  - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/ubuntu.yml
+
+# Override the 'unstable' currently configured in debian/changelog. This is not
+# needed if debian/changelog already had an Ubuntu release name, or if the
+# changelog just said 'UNRELEASED'
+variables:
+  RELEASE: questing
 
 stages:
   - provisioning
@@ -9,10 +15,6 @@ stages:
   - test  # Stage referenced by Salsa CI template reprotest stanza, so must exist
   - upgrade package
   - upgrade package and distro
-  - build (Ubuntu)
-  - test (Ubuntu)
-  - upgrade package (Ubuntu)
-  - upgrade package and distro (Ubuntu)
   - publish  # Stage referenced by Salsa CI template aptly stanza, so must exist even though not used
 
 # Additional builds on arm64 only when in main project as only it has runners
@@ -41,97 +43,43 @@ build armhf:
   # disable until a shared ARM runner is available agian
   when: manual
 
-# Temporairly disabled as riscv64 builders are offline
-# build riscv64:
-#   extends: .build-package-riscv64
-#   rules:
-#     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
-
-# Backports
-
-build trixie-backports:
-  extends: .build-package
-  variables:
-    RELEASE: trixie-backports
-
-build bookworm-backports:
-  extends: .build-package
-  variables:
-    RELEASE: bookworm-backports
-
-# Debian Stretch too old for debhelper-compat (= 13)
-
-# Ubuntu
-
-build questing:
-  extends: .build-package
-  stage: build (Ubuntu)
-  variables:
-    VENDOR: ubuntu
-    RELEASE: questing
-    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
-
 build plucky:
   extends: .build-package
-  stage: build (Ubuntu)
   variables:
-    VENDOR: ubuntu
     RELEASE: plucky
-    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
 build noble:
   extends: .build-package
-  stage: build (Ubuntu)
   variables:
-    VENDOR: ubuntu
     RELEASE: noble
-    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
 build jammy:
   extends: .build-package
-  stage: build (Ubuntu)
   variables:
-    VENDOR: ubuntu
     RELEASE: jammy
-    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
 # Ubuntu Focal too old for debhelper-compat (= 13)
 
-autopkgtest questing:
-  extends: .test-autopkgtest
-  stage: test (Ubuntu)
-  needs:
-    - job: build questing
-  variables:
-    RELEASE: questing
-    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
-
 autopkgtest plucky:
   extends: .test-autopkgtest
-  stage: test (Ubuntu)
   needs:
     - job: build plucky
   variables:
     RELEASE: plucky
-    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
 autopkgtest noble:
   extends: .test-autopkgtest
-  stage: test (Ubuntu)
   needs:
     - job: build noble
   variables:
     RELEASE: noble
-    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
 autopkgtest jammy:
   extends: .test-autopkgtest
-  stage: test (Ubuntu)
   needs:
     - job: build jammy
   variables:
     RELEASE: jammy
-    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
 # Define snippets used to construct jobs
 
@@ -379,7 +327,7 @@ autopkgtest jammy:
   - dpkg -l entr
   - *test-enable-artifacts-repo
   - apt-get upgrade -q --simulate
-  - apt-get upgrade -qq --yes
+  - apt-get upgrade -q --yes
   - >
     dpkg -l | grep entr | grep salsaci || {
       echo "ERROR! Entr was not upgraded as expexted to CI version"
@@ -394,53 +342,29 @@ autopkgtest jammy:
   - *test-enable-artifacts-repo
   # Avoid `-qq` in simulate, as on errors it would not show any context info
   - apt-get upgrade -q --simulate
-  - apt-get upgrade -qq --yes
+  - apt-get upgrade -q --yes
   # Extra fix needed in upgrades from Bullseye or older, as the previous step
   # installs grep only in new path /usr/bin/grep
   - test -f /bin/grep || cp -av /usr/bin/grep /bin/
   # Avoid `-qq` in simulate, as on errors it would not show any context info
   - apt-get full-upgrade -q --simulate
-  - apt-get full-upgrade -qq --yes
+  - apt-get full-upgrade -q --yes
   - >
     dpkg -l | grep entr | grep salsaci || {
       echo "ERROR! Entr was not upgraded as expexted to CI version"
       exit 1
     }
 
-upgrade in sid:
+upgrade in questing:
   stage: upgrade package
   needs:
     - job: build
-  image: debian:sid
-  script:
-    - *test-upgrade-package
-
-upgrade in trixie:
-  stage: upgrade package
-  needs:
-    - job: build trixie-backports
-  image: debian:trixie
-  script:
-    - *test-upgrade-package
-
-upgrade in bookworm:
-  stage: upgrade package
-  needs:
-    - job: build bookworm-backports
-  image: debian:bookworm
-  script:
-    - *test-upgrade-package
-
-upgrade in questing:
-  stage: upgrade package (Ubuntu)
-  needs:
-    - job: build questing
   image: ubuntu:questing
   script:
     - *test-upgrade-package
 
 upgrade in plucky:
-  stage: upgrade package (Ubuntu)
+  stage: upgrade package
   needs:
     - job: build plucky
   image: ubuntu:plucky
@@ -448,7 +372,7 @@ upgrade in plucky:
     - *test-upgrade-package
 
 upgrade in noble:
-  stage: upgrade package (Ubuntu)
+  stage: upgrade package
   needs:
     - job: build noble
   image: ubuntu:noble
@@ -456,69 +380,39 @@ upgrade in noble:
     - *test-upgrade-package
 
 upgrade in jammy:
-  stage: upgrade package (Ubuntu)
+  stage: upgrade package
   needs:
     - job: build jammy
   image: ubuntu:jammy
   script:
     - *test-upgrade-package
 
-upgrade from trixie:
-  stage: upgrade package and distro
-  image: debian:trixie
-  script:
-    - *test-upgrade-package-and-distro
-
-upgrade from bookworm:
-  stage: upgrade package and distro
-  image: debian:bookworm
-  script:
-    - *test-upgrade-package-and-distro
-
-upgrade from bullseye:
-  stage: upgrade package and distro
-  image: debian:bullseye
-  script:
-    - *test-upgrade-package-and-distro
-
-upgrade from buster:
-  stage: upgrade package and distro
-  image: debian:buster
-  script:
-    - *test-upgrade-package-and-distro
-
-upgrade from stretch:
-  stage: upgrade package and distro
-  image: debian:stretch
-  script:
-    - *test-upgrade-package-and-distro
-
 upgrade from questing:
-  stage: upgrade package and distro (Ubuntu)
+  stage: upgrade package and distro
   image: ubuntu:questing
   script:
     - *test-upgrade-package-and-distro
 
 upgrade from plucky:
-  stage: upgrade package and distro (Ubuntu)
+  stage: upgrade package and distro
   image: ubuntu:plucky
   script:
     - *test-upgrade-package-and-distro
 
 upgrade from noble:
-  stage: upgrade package and distro (Ubuntu)
+  stage: upgrade package and distro
   image: ubuntu:noble
   script:
     - *test-upgrade-package-and-distro
 
 upgrade from jammy:
-  stage: upgrade package and distro (Ubuntu)
+  stage: upgrade package and distro
   image: ubuntu:jammy
   script:
     - *test-upgrade-package-and-distro
 
 upgrade from focal:
-  stage: upgrade package and distro (Ubuntu)
+  stage: upgrade package and distro
   image: ubuntu:focal
   script:
     - *test-upgrade-package-and-distro
