@@ -20,16 +20,22 @@ build arm64:
   extends: .build-package-arm64
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+  # disable until a shared ARM runner is available agian
+  when: manual
 
 build armel:
   extends: .build-package-armel
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+  # disable until a shared ARM runner is available agian
+  when: manual
 
 build armhf:
   extends: .build-package-armhf
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+  # disable until a shared ARM runner is available agian
+  when: manual
 
 # Temporairly disabled as riscv64 builders are offline
 # build riscv64:
