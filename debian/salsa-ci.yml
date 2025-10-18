@@ -119,6 +119,8 @@ autopkgtest jammy:
   EOF
   # Emit non-zero exit code also on warnings to ensure CI stops on any issue
   echo 'APT::Update::Error-Mode "any";' > /etc/apt/apt.conf.d/non-zero-exit-on-warnings
+  # Prime the apt cache so later apt commands can run
+  apt-get update -q
 
 .test-enable-sid-repos: &test-enable-sid-repos
   # If already on Sid, most steps below will be skipped. If upgrading a distro
