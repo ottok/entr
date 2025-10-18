@@ -312,6 +312,23 @@ autopkgtest jammy:
       fi
     done
 
+.test-enable-questing-repos: &test-enable-questing-repos |
+  rm -vf /etc/apt/sources.list
+  cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
+  Types: deb
+  URIs: http://archive.ubuntu.com/ubuntu/
+  Suites: questing questing-updates questing-backports
+  Components: main universe restricted multiverse
+  Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+  Types: deb
+  URIs: http://security.ubuntu.com/ubuntu/
+  Suites: questing-security
+  Components: main universe restricted multiverse
+  Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+  EOF
+  apt-get update -q
+
 .test-enable-artifacts-repo: &test-enable-artifacts-repo |
   # List files so it can be verified from logs that correct artifacts are present
   find -ls -maxdepth 3
@@ -338,7 +355,7 @@ autopkgtest jammy:
   - *test-prepare-container
   - apt-get install -q --yes entr
   - dpkg -l entr
-  - *test-enable-sid-repos
+  - *test-enable-questing-repos
   - *test-enable-artifacts-repo
   # Avoid `-qq` in simulate, as on errors it would not show any context info
   - apt-get upgrade -q --simulate
