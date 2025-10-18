@@ -10,6 +10,7 @@ stages:
   - upgrade package
   - upgrade package and distro
   - build (Ubuntu)
+  - test (Ubuntu)
   - upgrade package (Ubuntu)
   - upgrade package and distro (Ubuntu)
   - publish  # Stage referenced by Salsa CI template aptly stanza, so must exist even though not used
@@ -95,6 +96,42 @@ build jammy:
     SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
 # Ubuntu Focal too old for debhelper-compat (= 13)
+
+autopkgtest questing:
+  extends: .test-autopkgtest
+  stage: test (Ubuntu)
+  needs:
+    - job: build questing
+  variables:
+    RELEASE: questing
+    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
+
+autopkgtest plucky:
+  extends: .test-autopkgtest
+  stage: test (Ubuntu)
+  needs:
+    - job: build plucky
+  variables:
+    RELEASE: plucky
+    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
+
+autopkgtest noble:
+  extends: .test-autopkgtest
+  stage: test (Ubuntu)
+  needs:
+    - job: build noble
+  variables:
+    RELEASE: noble
+    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
+
+autopkgtest jammy:
+  extends: .test-autopkgtest
+  stage: test (Ubuntu)
+  needs:
+    - job: build jammy
+  variables:
+    RELEASE: jammy
+    SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
 # Define snippets used to construct jobs
 
