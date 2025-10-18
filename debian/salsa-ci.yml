@@ -103,6 +103,7 @@ autopkgtest questing:
   needs:
     - job: build questing
   variables:
+    VENDOR: 'ubuntu'
     RELEASE: questing
     SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
@@ -112,6 +113,7 @@ autopkgtest plucky:
   needs:
     - job: build plucky
   variables:
+    VENDOR: 'ubuntu'
     RELEASE: plucky
     SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
@@ -121,6 +123,7 @@ autopkgtest noble:
   needs:
     - job: build noble
   variables:
+    VENDOR: 'ubuntu'
     RELEASE: noble
     SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
@@ -130,6 +133,7 @@ autopkgtest jammy:
   needs:
     - job: build jammy
   variables:
+    VENDOR: 'ubuntu'
     RELEASE: jammy
     SALSA_CI_MIRROR: 'http://archive.ubuntu.com/ubuntu'
 
