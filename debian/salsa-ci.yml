@@ -328,6 +328,8 @@ autopkgtest jammy:
   Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
   EOF
   apt-get update -q
+  # Upgrade minimal stack first
+  apt-get install -q --yes apt
 
 .test-enable-artifacts-repo: &test-enable-artifacts-repo |
   # List files so it can be verified from logs that correct artifacts are present
