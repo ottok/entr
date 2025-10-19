@@ -349,7 +349,10 @@ autopkgtest jammy:
   - apt-get upgrade --simulate
   - apt-get upgrade --yes
   # Avoid `-qq` in simulate, as on errors it would not show any context info
-  - apt-get full-upgrade --simulate
+  # In Ubuntu the full-upgrade will error on broken relationship but the
+  # full-upgrade will still pass:
+  #   E: Conf Broken coreutils-from-uutils:amd64
+  - apt-get full-upgrade --simulate || true
   - apt-get full-upgrade --yes
   - >
     dpkg -l | grep entr | grep salsaci || {
