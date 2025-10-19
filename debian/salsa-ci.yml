@@ -102,6 +102,7 @@ autopkgtest questing:
   stage: test (Ubuntu)
   needs:
     - job: build questing
+      artifacts: true
   variables:
     VENDOR: 'ubuntu'
     RELEASE: questing
@@ -112,6 +113,7 @@ autopkgtest plucky:
   stage: test (Ubuntu)
   needs:
     - job: build plucky
+      artifacts: true
   variables:
     VENDOR: 'ubuntu'
     RELEASE: plucky
@@ -122,6 +124,7 @@ autopkgtest noble:
   stage: test (Ubuntu)
   needs:
     - job: build noble
+      artifacts: true
   variables:
     VENDOR: 'ubuntu'
     RELEASE: noble
@@ -132,6 +135,7 @@ autopkgtest jammy:
   stage: test (Ubuntu)
   needs:
     - job: build jammy
+      artifacts: true
   variables:
     VENDOR: 'ubuntu'
     RELEASE: jammy
