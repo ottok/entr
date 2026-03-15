@@ -1,3 +1,17 @@
+entr (5.7-2) UNRELEASED; urgency=medium
+
+  [ Otto Kekäläinen ]
+  * Add patch to fix Bookworm and Bullseye builds with local strlcpy
+  * Extensive improvements to Salsa CI
+
+  [ Ahmed Siam ]
+  * Remove maintainer from `Uploaders` field to fix a lintian warning
+
+  [ Joseph Nahmias ]
+  * Add missing dash in --add-upstream-vcs in README.source.md
+
+ -- Otto Kekäläinen <otto@debian.org>  Sun, 15 Mar 2026 02:02:40 +0000
+
 entr (5.7-1) unstable; urgency=medium
 
   * New upstream release 5.7
