@@ -38,7 +38,7 @@ trap 'printf "\nTerminated by SIGINT at line $LINENO\n"; exit 1' INT
 
 utils="file pgrep git vim tmux"
 for util in $utils; do
-	p=$(command -pv $util) || {
+	p=$(command -v $util) || {
 		echo "ERROR: could not locate the '$util' utility" >&2
 		echo "System tests depend on the following: $utils" >&2
 		exit 1
@@ -62,11 +62,21 @@ command -v shopt > /dev/null && shopt -s expand_aliases
 # fast tests
 
 try "no arguments"
-	entr 2> /dev/null || code=$?
-	assert $code 1
+	entr >$tmp/exec.out 2>$tmp/exec.err
+	assert $? 1
+	grep -q "usage:" $tmp/exec.err
+	assert $? 0
+
+try "display option summary"
+	entr_tty -h >$tmp/exec.out 2>$tmp/exec.err
+	assert $? 1
+	grep -q "usage:" $tmp/exec.err
+	assert $? 0
+	grep -q "summary:" $tmp/exec.out
+	assert $? 0
 
 try "no input"
-	entr echo "vroom" 2> /dev/null || code=$?
+	echo | entr echo "vroom" 2> /dev/null || code=$?
 	assert $code 1
 
 try "reload and clear options with no utility to run"
@@ -81,6 +91,14 @@ try "no regular files provided as input"
 	mkdir $tmp/dir1
 	ls $tmp | entr echo 2> /dev/null || code=$?
 	rmdir $tmp/dir1
+	assert $code 1
+
+try "invalid signal number set"
+	ls $tmp | ENTR_RESTART_SIGNAL="" entr echo 2> /dev/null || code=$?
+	assert $code 1
+	ls $tmp | ENTR_RESTART_SIGNAL="0" entr echo 2> /dev/null || code=$?
+	assert $code 1
+	ls $tmp | ENTR_RESTART_SIGNAL="KILL" entr echo 2> /dev/null || code=$?
 	assert $code 1
 
 # status message tests
@@ -286,13 +304,41 @@ try "exec single shell utility and exit when a hidden subdirectory is added"
 
 try "exec single shell utility and exit when a file is added to a specific path"
 	setup
-	ls -d $tmp | entr -dp sh -c 'echo ping' >$tmp/exec.out 2>$tmp/exec.err \
+	ls -d $tmp | entr -p sh -c 'echo ping' >$tmp/exec.out 2>$tmp/exec.err \
 	    || true &
 	bgpid=$! ; zz
 	touch $tmp/newfile
 	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "ping"
 	assert "$(cat $tmp/exec.err)" "entr: directory altered"
+
+try "exec utility when a symlink is changed"
+	setup
+	ln -sf $tmp/file1 $tmp/link
+	echo $tmp/link | entr -p echo "changed" > $tmp/exec.out &
+	bgpid=$! ; zz
+	ln -sf $tmp/file2 $tmp/link ; zz
+	kill -INT $bgpid
+	wait $bgpid; assert "$?" "0"
+	if [ $(uname | grep -E 'Darwin|Linux') ]; then
+		assert "$(cat $tmp/exec.out)" "changed"
+	else
+		skip "O_SYMLINK not supported"
+	fi
+
+try "exec utility when a broken symlink is changed"
+	if [ $(uname | grep -E 'Darwin|Linux') ]; then
+		setup
+		ln -sf $tmp/file9 $tmp/link
+		echo $tmp/link | entr -p echo "changed" > $tmp/exec.out &
+		bgpid=$! ; zz
+		ln -sf $tmp/file1 $tmp/link ; zz
+		kill -INT $bgpid
+		wait $bgpid; assert "$?" "0"
+		assert "$(cat $tmp/exec.out)" "changed"
+	else
+		skip "O_SYMLINK not supported"
+	fi
 
 try "do nothing when a file not monitored is changed in directory watch mode"
 	setup
@@ -403,15 +449,15 @@ try "restart a server when a file is modified"
 	wait $bgpid; assert "$?" "0"
 	assert "$(cat $tmp/exec.out)" "$(printf 'started.\nstarted.')"
 
-try "ensure that all shell subprocesses are terminated in restart mode"
+try "ensure that all shell subprocesses are terminated with custom signal in restart mode"
 	setup
 	cat <<-SCRIPT > $tmp/go.sh
 	#!/bin/sh
-	trap 'echo "caught signal"; exit' TERM
+	trap 'echo "caught signal"; exit' INT
 	echo "running"; sleep 10
 	SCRIPT
 	chmod +x $tmp/go.sh
-	ls $tmp/file2 | entr -r sh -c "$tmp/go.sh" 2> /dev/null > $tmp/exec.out &
+	ls $tmp/file2 | ENTR_RESTART_SIGNAL=INT entr -r sh -c "$tmp/go.sh" 2> /dev/null > $tmp/exec.out &
 	bgpid=$! ; zz
 	kill -INT $bgpid ; zz
 	assert "$(cat $tmp/exec.out)" "$(printf 'running\ncaught signal')"
@@ -521,7 +567,7 @@ try "exec an interactive utility when a file changes"
 		echo 456 >> $tmp/file2 ; zz
 		kill -INT $bgpid
 		wait $bgpid; assert "$?" "0"
-		assert "$(cat $tmp/exec.out | tr '/pts' '/tty')" "/dev/tty"
+		assert "$(awk '/dev.(tty|pts)/ { print "/dev/tty" }' $tmp/exec.out)" "/dev/tty"
 	fi
 
 try "exec a command using shell option"
