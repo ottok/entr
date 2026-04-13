@@ -17,6 +17,7 @@
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/wait.h>
 
 #include <sys/event.h>
@@ -29,6 +30,7 @@
 #include <limits.h>
 #include <paths.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,6 +64,7 @@ WatchFile *leading_edge;
 int child_pid;
 int child_status;
 int terminating;
+int restart_signal;
 
 int aggressive_opt;
 int clear_opt;
@@ -79,10 +82,15 @@ struct termios canonical_tty;
 static char *shell, *shell_base;
 static char *argv0, *argv0_base;
 
+/* function pointers */
+
+int (*xstat)(const char *path, struct stat *sb);
+
 /* forwards */
 
-static void usage();
+static void usage(bool);
 static void terminate_utility();
+static void set_restart_signal();
 static void handle_exit(int sig);
 static void proc_exit(int sig);
 static void print_child_status(int status);
@@ -100,7 +108,6 @@ static void watch_loop(int, char *[]);
  */
 int
 main(int argc, char *argv[]) {
-	struct rlimit rl;
 	int kq;
 	struct sigaction act;
 	int ttyfd;
@@ -112,7 +119,7 @@ main(int argc, char *argv[]) {
 
 	/* call usage() if no command is supplied */
 	if (argc < 2)
-		usage();
+		usage(false);
 	argv_index = set_options(argv);
 
 	sigemptyset(&act.sa_mask);
@@ -127,11 +134,20 @@ main(int argc, char *argv[]) {
 	if (sigaction(SIGHUP, &act, NULL) != 0)
 		err(1, "Failed to set SIGHUP handler");
 
+	set_restart_signal();
+
 	/* notification used to combine the one-shot and restart options */
 	act.sa_flags = 0;
 	act.sa_handler = proc_exit;
 	if (sigaction(SIGCHLD, &act, NULL) != 0)
 		err(1, "Failed to set SIGCHLD handler");
+
+	/* monitor symlinks if possible */
+	xstat = stat;
+#if defined(O_PATH) || defined(O_SYMLINK)
+	if (getenv("ENTR_FOLLOW_SYMLINK") == NULL)
+		xstat = lstat;
+#endif
 
 #if defined(_LINUX_PORT)
 	/* attempt to read inotify limits */
@@ -139,13 +155,20 @@ main(int argc, char *argv[]) {
 	if (open_max == 0)
 		open_max = 65536;
 #elif defined(_MACOS_PORT)
+	struct rlimit rl;
+	int mib[2] = { CTL_KERN, KERN_MAXFILESPERPROC };
+	size_t namelen = sizeof(open_max);
+
 	if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
 		err(1, "getrlimit");
-	open_max = min(OPEN_MAX, rl.rlim_max);
+	if (sysctl(mib, 2, &open_max, &namelen, NULL, 0) == -1)
+		open_max = OPEN_MAX;
 	rl.rlim_cur = open_max;
 	if (setrlimit(RLIMIT_NOFILE, &rl) != 0)
 		err(1, "setrlimit cannot set rlim_cur to %u", open_max);
 #else /* BSD */
+	struct rlimit rl;
+
 	if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
 		err(1, "getrlimit");
 	open_max = (unsigned) rl.rlim_max;
@@ -161,12 +184,9 @@ main(int argc, char *argv[]) {
 	setenv("PAGER", "/bin/cat", 0);
 
 	/* ensure a shell is available to use */
-	setenv("SHELL", "/bin/sh", 0);
-
-	shell = getenv("SHELL");
+	if ((shell = getenv("SHELL")) == NULL)
+		shell = "/bin/sh";
 	shell_base = strdup(shell);
-	if (shell_base == NULL)
-		err(1, "cannot duplicate string");
 	shell_base = basename(shell_base);
 
 	/* initialize status filter */
@@ -184,13 +204,15 @@ main(int argc, char *argv[]) {
 
 	/* sequential scan may depend on a 0 at the end */
 	files = calloc(open_max + 1, sizeof(WatchFile *));
+	if (files == NULL)
+		err(1, "calloc");
 
 	if ((kq = kqueue()) == -1)
 		err(1, "cannot create kqueue");
 
 	/* expect file list from a pipe */
 	if (isatty(fileno(stdin)))
-		usage();
+		usage(false);
 
 	/* read input and populate watch list, skipping non-regular files */
 	n_files = process_input(stdin, files, open_max);
@@ -231,9 +253,28 @@ main(int argc, char *argv[]) {
 /* Utility functions */
 
 void
-usage() {
+usage(bool summary) {
 	fprintf(stderr, "release: %s\n", RELEASE);
 	fprintf(stderr, "usage: entr [-acdnprsxz] utility [argument [/_] ...] < filenames\n");
+	if (!summary) {
+		fprintf(stderr, "hint: use -h to display option summary\n");
+		goto end;
+	}
+
+	printf("summary:\n"
+	       "    -a  Do not consolidate events\n"
+	       "    -c  Clear screen before execution\n"
+	       "    -d  Track files added or removed from directories\n"
+	       "    -n  Non-interactive mode\n"
+	       "    -p  Wait for first event\n"
+	       "    -r  Run as a background process, use signal to restart\n"
+	       "    -s  Evaluate using a shell\n"
+	       "    -x  Format exit status\n"
+	       "    -z  Exit after the utility completes\n");
+	printf("docs:\n"
+	       "    man entr\n");
+
+end:
 	exit(1);
 }
 
@@ -244,12 +285,36 @@ terminate_utility() {
 	terminating = 1;
 
 	if (child_pid > 0) {
-		killpg(child_pid, SIGTERM);
+		killpg(child_pid, restart_signal);
 		waitpid(child_pid, &status, 0);
 		child_pid = 0;
 	}
 
 	terminating = 0;
+}
+
+void
+set_restart_signal() {
+	const char *sig;
+	const int signum[] = { SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGUSR1, SIGUSR2 };
+	const char *signame[] = { "HUP", "INT", "QUIT", "TERM", "USR1", "USR2" };
+	int i;
+
+	if ((sig = getenv("ENTR_RESTART_SIGNAL")) == NULL) {
+		restart_signal = SIGTERM;
+		return;
+	}
+
+	if (strncmp(sig, "SIG", 3) == 0)
+		sig += 3;
+
+	for (i = 0; signum[i] < 6; i++) {
+		if (strcmp(sig, signame[i]) == 0)
+			restart_signal = signum[i];
+	}
+
+	if (restart_signal == 0)
+		errx(1, "unrecognized signal: %s <> (HUP, INT, QUIT, TERM, USR1, USR2)", sig);
 }
 
 /* Callbacks */
@@ -331,7 +396,7 @@ print_child_status(int status) {
 int
 process_input(FILE *file, WatchFile *files[], int max_files) {
 	char buf[PATH_MAX];
-	char *p, *path;
+	char *p, *path, *parent_path;
 	int n_files = 0;
 	struct stat sb;
 	int i, matches;
@@ -341,38 +406,51 @@ process_input(FILE *file, WatchFile *files[], int max_files) {
 			*p = '\0';
 		if (buf[0] == '\0')
 			continue;
+		path = &buf[0];
 
-		if (stat(buf, &sb) == -1) {
-			warnx("unable to stat '%s'", buf);
+		if (xstat(path, &sb) == -1) {
+			warnx("unable to stat '%s'", path);
 			continue;
 		}
-		if (S_ISREG(sb.st_mode) != 0) {
+
+		if ((S_ISREG(sb.st_mode) | S_ISLNK(sb.st_mode)) != 0) {
 			files[n_files] = malloc(sizeof(WatchFile));
-			strlcpy(files[n_files]->fn, buf, MEMBER_SIZE(WatchFile, fn));
+			if (files[n_files] == NULL)
+				err(1, "malloc");
+			strlcpy(files[n_files]->fn, path, MEMBER_SIZE(WatchFile, fn));
 			files[n_files]->is_dir = 0;
+			files[n_files]->is_symlink = (S_ISLNK(sb.st_mode) != 0) ? 1 : 0;
 			files[n_files]->file_count = 0;
 			files[n_files]->mode = sb.st_mode;
 			files[n_files]->ino = sb.st_ino;
 			n_files++;
-		}
-		/* also watch the directory if it's not already in the list */
-		if (dirwatch_opt > 0) {
-			if (S_ISDIR(sb.st_mode) != 0)
-				path = &buf[0];
-			else if ((path = dirname(buf)) == 0)
-				err(1, "dirname '%s' failed", buf);
-			for (matches = 0, i = 0; i < n_files; i++)
-				if (strcmp(files[i]->fn, path) == 0)
-					matches++;
-			if (matches == 0) {
-				files[n_files] = malloc(sizeof(WatchFile));
-				strlcpy(files[n_files]->fn, path, MEMBER_SIZE(WatchFile, fn));
-				files[n_files]->is_dir = 1;
-				files[n_files]->file_count = list_dir(path);
-				files[n_files]->mode = sb.st_mode;
-				files[n_files]->ino = sb.st_ino;
-				n_files++;
+
+			/* also watch the directory if it's not already in the list */
+			if (dirwatch_opt > 0) {
+				if ((parent_path = dirname(path)) == 0)
+					err(1, "dirname '%s' failed", path);
+				for (matches = 0, i = 0; i < n_files; i++) {
+					if ((files[i]->is_dir == 1) && (strcmp(files[i]->fn, parent_path) == 0))
+						matches++;
+				}
+				if (matches == 0) {
+					if (stat(parent_path, &sb) == -1)
+						warnx("unable to stat '%s'", parent_path);
+					path = parent_path;
+				}
 			}
+		}
+		if (S_ISDIR(sb.st_mode) != 0) {
+			files[n_files] = malloc(sizeof(WatchFile));
+			if (files[n_files] == NULL)
+				err(1, "malloc");
+			strlcpy(files[n_files]->fn, path, MEMBER_SIZE(WatchFile, fn));
+			files[n_files]->is_dir = 1;
+			files[n_files]->is_symlink = 0;
+			files[n_files]->file_count = list_dir(path);
+			files[n_files]->mode = sb.st_mode;
+			files[n_files]->ino = sb.st_ino;
+			n_files++;
 		}
 		if (n_files + 1 > max_files)
 			return -1;
@@ -403,6 +481,9 @@ int
 set_options(char *argv[]) {
 	int ch;
 	int argc;
+
+	if (argv[1] && strcmp(argv[1], "-h") == 0)
+		usage(true);
 
 	/* read arguments until we reach a command */
 	for (argc = 1; argv[argc] != 0 && argv[argc][0] == '-'; argc++)
@@ -437,11 +518,11 @@ set_options(char *argv[]) {
 			oneshot_opt = 1;
 			break;
 		default:
-			usage();
+			usage(false);
 		}
 	}
 	if (argv[optind] == 0)
-		usage();
+		usage(false);
 
 	if (status_filter_opt && restart_opt)
 		errx(1, "-r and -x may not be combined");
@@ -464,35 +545,41 @@ run_utility(char *argv[]) {
 	char **new_argv;
 	char *p, *arg_buf;
 	int argc;
+	size_t remaining;
 
 	if (restart_opt == 1)
 		terminate_utility();
 
+	arg_buf = malloc(ARG_MAX);
+
 	if (shell_opt == 1) {
 		/* run argv[1] with a shell using the leading edge as $0 */
 		argc = 4;
-		arg_buf = malloc(ARG_MAX);
 		new_argv = calloc(argc + 1, sizeof(char *));
-		realpath(leading_edge->fn, arg_buf);
+		if (new_argv == NULL)
+			err(1, "calloc");
 		new_argv[0] = shell;
 		new_argv[1] = "-c";
 		new_argv[2] = argv[0];
-		new_argv[3] = arg_buf;
+		new_argv[3] = leading_edge->fn;
 	} else {
 		/* clone argv on each invocation to make the implementation of more
 		 * complex substitution rules possible and easy
 		 */
 		for (argc = 0; argv[argc]; argc++)
 			;
-		arg_buf = malloc(ARG_MAX);
 		new_argv = calloc(argc + 1, sizeof(char *));
+		if (new_argv == NULL)
+			err(1, "calloc");
+		new_argv[0] = "/bin/false";
 		for (m = 0, i = 0, p = arg_buf; i < argc; i++) {
+			remaining = ARG_MAX - (p - arg_buf);
 			new_argv[i] = p;
 			if ((m < 1) && (strcmp(argv[i], "/_")) == 0) {
-				p += strlen(realpath(leading_edge->fn, p));
+				p += strlcpy(p, leading_edge->fn, remaining);
 				m++;
 			} else
-				p += strlcpy(p, argv[i], ARG_MAX - (p - arg_buf));
+				p += strlcpy(p, argv[i], remaining);
 			p++;
 		}
 	}
@@ -553,8 +640,10 @@ watch_file(int kq, WatchFile *file) {
 
 	/* wait up to 1 second for file to become available */
 	for (;;) {
-#ifdef O_EVTONLY
-		file->fd = open(file->fn, O_RDONLY | O_CLOEXEC | O_EVTONLY);
+#if defined(O_EVTONLY)
+		file->fd = open(file->fn, O_RDONLY | O_CLOEXEC | O_EVTONLY | O_SYMLINK);
+#elif defined(O_PATH)
+		file->fd = open(file->fn, O_RDONLY | O_CLOEXEC | O_PATH | O_NOFOLLOW);
 #else
 		file->fd = open(file->fn, O_RDONLY | O_CLOEXEC);
 #endif
@@ -656,10 +745,6 @@ main:
 	if ((nev == -1) && (errno != EINTR))
 		warn("kevent failed");
 
-	/* escape for test runner */
-	if ((nev == -2) && (collate_only == 0))
-		return;
-
 	for (i = 0; i < nev; i++) {
 		if (!noninteractive_opt && evList[i].filter == EVFILT_READ) {
 			if (read(STDIN_FILENO, &c, 1) < 1) {
@@ -722,7 +807,7 @@ main:
 		}
 
 		if (evList[i].fflags & NOTE_ATTRIB && S_ISREG(file->mode) != 0
-		    && stat(file->fn, &sb) == 0) {
+		    && xstat(file->fn, &sb) == 0) {
 			if (file->mode != sb.st_mode) {
 				do_exec = 1;
 				file->mode = sb.st_mode;
