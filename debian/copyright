@@ -15,8 +15,11 @@ Copyright: 1999-2001, Jonathan Lemon <jlemon@FreeBSD.org>
 License: BSD-2-Clause
 
 Files: debian/*
-Copyright: 2012-2022, Yuri D'Elia <wavexx@thregr.org>
-           2015-2025, Otto Kekäläinen <otto@debian.org>
+Copyright:
+ 2012-2022 Yuri D'Elia <wavexx@thregr.org>
+ 2015-2026 Otto Kekäläinen <otto@debian.org>
+ 2026 Ahmed Siam <aahs.coder@gmail.com>
+ 2026 Joseph Nahmias <joe@nahmias.net>
 License: ISC
 
 License: ISC
