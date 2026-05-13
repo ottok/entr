@@ -2,4 +2,4 @@ Version: 5
 
 Source: https://eradman.com/entrproject/code/
 Matching-Pattern: entr-(.*)\.tar\.gz
-Pgpsigurlmangle: s%$%\.asc%
+Pgp-Sig-Url-Mangle: s%$%\.asc%

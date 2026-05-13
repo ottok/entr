@@ -20,21 +20,21 @@ build arm64:
   extends: .build-package-arm64
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
-  # disable until a shared ARM runner is available agian
+  # disable until a shared ARM runner is available again
   when: manual
 
 build armel:
   extends: .build-package-armel
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
-  # disable until a shared ARM runner is available agian
+  # disable until a shared ARM runner is available again
   when: manual
 
 build armhf:
   extends: .build-package-armhf
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
-  # disable until a shared ARM runner is available agian
+  # disable until a shared ARM runner is available again
   when: manual
 
 # Temporairly disabled as riscv64 builders are offline
@@ -306,7 +306,7 @@ build bookworm-backports:
   - apt-get upgrade -qq --yes
   - >
     dpkg -l | grep entr | grep salsaci || {
-      echo "ERROR! Entr was not upgraded as expexted to CI version"
+      echo "ERROR! Entr was not upgraded as expected to CI version"
       exit 1
     }
 
@@ -327,7 +327,7 @@ build bookworm-backports:
   - apt-get full-upgrade -qq --yes
   - >
     dpkg -l | grep entr | grep salsaci || {
-      echo "ERROR! Entr was not upgraded as expexted to CI version"
+      echo "ERROR! Entr was not upgraded as expected to CI version"
       exit 1
     }
 
