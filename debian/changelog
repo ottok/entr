@@ -1,10 +1,15 @@
-entr (5.8-1) UNRELEASED; urgency=medium
+entr (5.8-1) unstable; urgency=medium
 
   [ Otto Kekäläinen ]
   * New upstream release 5.8
   * Add patch to fix Bookworm and Bullseye builds with local strlcpy
   * Extensive improvements to Salsa CI
   * Update d/watch to use uscan v5 format
+  * Update copyright years for recent contributors
+  * Apply consistent formatting to packaging files and fix typos
+  * Drop redundant `Priority: optional`
+  * Drop redundant `Rules-Requires-Root: no`
+  * Bump Debian Policy version to 4.7.4
 
   [ Ahmed Siam ]
   * Remove maintainer from `Uploaders` field to fix a lintian warning
@@ -12,7 +17,7 @@ entr (5.8-1) UNRELEASED; urgency=medium
   [ Joseph Nahmias ]
   * Add missing dash in --add-upstream-vcs in README.source.md
 
- -- Otto Kekäläinen <otto@debian.org>  Mon, 13 Apr 2026 13:10:00 +0000
+ -- Otto Kekäläinen <otto@debian.org>  Wed, 13 May 2026 01:26:40 +0000
 
 entr (5.7-1) unstable; urgency=medium
 
