@@ -1,7 +1,14 @@
 ---
 # Include Salsa CI as a base
 include:
-  - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
+  - https://salsa.debian.org/otto/salsa-ci-pipeline/raw/2026-cache/salsa-ci.yml
+  - https://salsa.debian.org/otto/salsa-ci-pipeline/raw/2026-cache/pipeline-jobs.yml
+
+variables:
+  SALSA_CI_IMAGES: "registry.salsa.debian.org/otto/salsa-ci-pipeline"
+  SALSA_CI_IMAGES_BUILD: "${SALSA_CI_IMAGES}/build:sid_2026-cache"
+  # For i386 faketime builds, also override:
+  SALSA_CI_IMAGES_BUILD_I386: "${SALSA_CI_IMAGES}/i386/build:sid_2026-cache"
 
 stages:
   - provisioning
