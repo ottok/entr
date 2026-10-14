@@ -25,14 +25,15 @@ variables:
   SALSA_CI_WRAP_AND_SORT_ARGS: '-ast'
   SALSA_CI_DISABLE_LICENSERECON: 0
   SALSA_CI_ENABLE_DEBDIFF: 1
-  # Faketime build and autopkgtest on the recommended amd64 lane. See the
-  # README section 'Important warning for faketime jobs' for the caveats.
+  # Faketime build on the recommended amd64 lane. See the README section
+  # 'Important warning for faketime jobs' for the caveats.
   SALSA_CI_DISABLE_BUILD_PACKAGE_FAKETIME: 0
-  # Note: the upstream template only schedules the faketime autopkgtest when
-  # SALSA_CI_ENABLE_AUTOPKGTEST_FAKETIME is truthy (the disable variable
-  # alone is not enough), so both are set here.
-  SALSA_CI_ENABLE_AUTOPKGTEST_FAKETIME: 1
-  SALSA_CI_DISABLE_AUTOPKGTEST_FAKETIME: 0
+  # autopkgtest (faketime) is disabled: it gets stuck in package
+  # installation and never completes due to runner issues. Re-enable by
+  # setting SALSA_CI_ENABLE_AUTOPKGTEST_FAKETIME to 1 (the upstream
+  # template only schedules the job when that variable is truthy, the
+  # disable variable alone is not enough).
+  SALSA_CI_DISABLE_AUTOPKGTEST_FAKETIME: 1
   # Enable architectures for which this project has runners available
   # (amd64 is always built; arm64 uses its dedicated runner, and armel/
   # armhf run on the arm64 runner as designed upstream)
