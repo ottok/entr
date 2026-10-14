@@ -50,11 +50,7 @@ build trixie-backports:
   variables:
     RELEASE: trixie-backports
 
-build bookworm-backports:
-  extends: .build-package
-  variables:
-    RELEASE: bookworm-backports
-
+# Debian Bookworm too old for debhelper-compat (= 14)
 # Debian Stretch too old for debhelper-compat (= 13)
 
 # Define snippets used to construct jobs
@@ -344,14 +340,6 @@ upgrade in trixie:
   needs:
     - job: build trixie-backports
   image: debian:trixie
-  script:
-    - *test-upgrade-package
-
-upgrade in bookworm:
-  stage: upgrade package
-  needs:
-    - job: build bookworm-backports
-  image: debian:bookworm
   script:
     - *test-upgrade-package
 
