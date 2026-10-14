@@ -1,9 +1,17 @@
-entr (5.9-1) UNRELEASED; urgency=medium
+entr (5.9-1) unstable; urgency=medium
 
   * New upstream release 5.9
   * Includes the following security fix:
     - CVE-2026-18370
   * Bump Debhelper version from 13 to 14
+  * Remove patch and copyright after upstream removed missing/strlcpy.c
+  * Use spelling 'BSD-2-clause' to match licensecheck output
+  * Fix flaky 'overwritten script' system test
+  * Silence git warning about missing name
+  * Add patch to fix build warning
+  * Add PIE flags explicitly to satisfy blhc
+  * Salsa CI: Bullseye now available via archive.d.o
+  * Salsa CI: Stop building Bookworm backports as package now uses Debhelper 14
 
  -- Otto Kekäläinen <otto@debian.org>  Wed, 14 Oct 2026 11:11:11 +0000
 
