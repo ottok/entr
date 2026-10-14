@@ -127,7 +127,7 @@ build bookworm-backports:
   # Emit non-zero exit code also on warnings to ensure CI stops on any issue
   echo 'APT::Update::Error-Mode "any";' > /etc/apt/apt.conf.d/non-zero-exit-on-warnings
   # Use archive.d.o for discontinued releases no longer on deb.d.o
-  if grep -q -E 'buster|stretch' /etc/os-release
+  if grep -q -E 'buster|stretch|bullseye' /etc/os-release
   then
     # Update mirror url to point to archive.debian.org
     sed -E -i "s/(deb|security)\.debian\.org/archive.debian.org/" /etc/apt/sources.list
