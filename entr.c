@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2012 Eric Radman <ericshane@eradman.com>
- *
- * Permission to use, copy, modify, and distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * entr.c
+ * A utility for running arbitrary commands when files change
  */
 
 #include <sys/param.h>
@@ -46,11 +35,6 @@
 /* events to watch for */
 
 #define NOTE_ALL NOTE_DELETE | NOTE_WRITE | NOTE_RENAME | NOTE_TRUNCATE | NOTE_ATTRIB
-
-/* shortcuts */
-
-#define min(a, b) (((a) < (b)) ? (a) : (b))
-#define MEMBER_SIZE(S, M) sizeof(((S *) 0)->M)
 
 /* shared state */
 
@@ -395,11 +379,12 @@ print_child_status(int status) {
  */
 int
 process_input(FILE *file, WatchFile *files[], int max_files) {
-	char buf[PATH_MAX];
+	char buf[PATH_MAX + 1];
 	char *p, *path, *parent_path;
 	int n_files = 0;
 	struct stat sb;
 	int i, matches;
+	size_t len;
 
 	while (fgets(buf, sizeof(buf), file) != NULL) {
 		if ((p = strchr(buf, '\n')) != NULL)
@@ -407,6 +392,12 @@ process_input(FILE *file, WatchFile *files[], int max_files) {
 		if (buf[0] == '\0')
 			continue;
 		path = &buf[0];
+
+		len = strlen(path);
+		if ((len + 1) > PATH_MAX) {
+			path[100] = '\0';
+			errx(1, "path too long: %s..", path);
+		}
 
 		if (xstat(path, &sb) == -1) {
 			warnx("unable to stat '%s'", path);
@@ -417,7 +408,7 @@ process_input(FILE *file, WatchFile *files[], int max_files) {
 			files[n_files] = malloc(sizeof(WatchFile));
 			if (files[n_files] == NULL)
 				err(1, "malloc");
-			strlcpy(files[n_files]->fn, path, MEMBER_SIZE(WatchFile, fn));
+			memcpy(files[n_files]->fn, path, len + 1);
 			files[n_files]->is_dir = 0;
 			files[n_files]->is_symlink = (S_ISLNK(sb.st_mode) != 0) ? 1 : 0;
 			files[n_files]->file_count = 0;
@@ -444,7 +435,7 @@ process_input(FILE *file, WatchFile *files[], int max_files) {
 			files[n_files] = malloc(sizeof(WatchFile));
 			if (files[n_files] == NULL)
 				err(1, "malloc");
-			strlcpy(files[n_files]->fn, path, MEMBER_SIZE(WatchFile, fn));
+			memcpy(files[n_files]->fn, path, len + 1);
 			files[n_files]->is_dir = 1;
 			files[n_files]->is_symlink = 0;
 			files[n_files]->file_count = list_dir(path);
@@ -543,14 +534,18 @@ run_utility(char *argv[]) {
 	int ret, status;
 	struct timespec delay = { 0, 1000000 };
 	char **new_argv;
-	char *p, *arg_buf;
+	char *p, *arg_buf, *src;
 	int argc;
-	size_t remaining;
+	size_t len, rem;
 
-	if (restart_opt == 1)
+	if (restart_opt == 1) {
 		terminate_utility();
+		nanosleep(&delay, NULL);
+	}
 
-	arg_buf = malloc(ARG_MAX);
+	arg_buf = malloc(rem = ARG_MAX);
+	if (arg_buf == NULL)
+		err(1, "malloc");
 
 	if (shell_opt == 1) {
 		/* run argv[1] with a shell using the leading edge as $0 */
@@ -563,9 +558,7 @@ run_utility(char *argv[]) {
 		new_argv[2] = argv[0];
 		new_argv[3] = leading_edge->fn;
 	} else {
-		/* clone argv on each invocation to make the implementation of more
-		 * complex substitution rules possible and easy
-		 */
+		/* clone argv on each invocation to allow for substitution rules */
 		for (argc = 0; argv[argc]; argc++)
 			;
 		new_argv = calloc(argc + 1, sizeof(char *));
@@ -573,14 +566,20 @@ run_utility(char *argv[]) {
 			err(1, "calloc");
 		new_argv[0] = "/bin/false";
 		for (m = 0, i = 0, p = arg_buf; i < argc; i++) {
-			remaining = ARG_MAX - (p - arg_buf);
 			new_argv[i] = p;
 			if ((m < 1) && (strcmp(argv[i], "/_")) == 0) {
-				p += strlcpy(p, leading_edge->fn, remaining);
+				src = leading_edge->fn;
 				m++;
 			} else
-				p += strlcpy(p, argv[i], remaining);
-			p++;
+				src = argv[i];
+
+			len = strlen(src);
+			if (len + 1 > rem)
+				errx(1, "argument list too long");
+
+			memcpy(p, src, len + 1);
+			p += len + 1;
+			rem -= len + 1;
 		}
 	}
 

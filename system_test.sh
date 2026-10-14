@@ -101,6 +101,13 @@ try "invalid signal number set"
 	ls $tmp | ENTR_RESTART_SIGNAL="KILL" entr echo 2> /dev/null || code=$?
 	assert $code 1
 
+try "reject path overflow"
+	path_max=$(getconf PATH_MAX $tmp)
+	printf "%0${path_max}s\n" | entr echo > $tmp/exec.out 2>$tmp/exec.err
+	assert $? 1
+	grep -q "path too long:" $tmp/exec.err
+	assert $? 0
+
 # status message tests
 
 try "install default status script"
@@ -523,7 +530,6 @@ try "ensure watches operate on a running executable"
 	cp -f /bin/sleep $tmp/ ; zz
 	kill -INT $bgpid
 	wait $bgpid; assert "$?" "0"
-	rm -f $tmp/sleep
 	assert "$(cat $tmp/exec.out)" "$(printf 'vroom\nvroom\n')"
 
 try "exec a command using the first file to change"
