@@ -6,10 +6,6 @@ Files: *
 Copyright: 2012-2024, Eric Radman <ericshane@eradman.com>
 License: ISC
 
-Files: missing/strlcpy.c
-Copyright: 1998, Todd C. Miller <Todd.Miller@courtesan.com>
-License: ISC
-
 Files: missing/sys/event.h
 Copyright: 1999-2001, Jonathan Lemon <jlemon@FreeBSD.org>
 License: BSD-2-Clause
