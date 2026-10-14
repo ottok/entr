@@ -94,12 +94,9 @@ test-crossbuild-armhf:
   variables:
     HOST_ARCH: armhf
 
-# Custom cross-build architecture not in Salsa CI
-test-crossbuild-armel:
-  stage: build
-  extends: .test-crossbuild-package-arm64
-  variables:
-    HOST_ARCH: armel
+# armel cross-build disabled, sbuild fails on:
+#   unsat-dependency: libbsd-dev:armel
+# (libbsd-dev has no armel binary in the build chroot sources used)
 
 # Custom cross-build architecture not in Salsa CI. Upstream provides no
 # native s390x build job template or build image, so the s390x runner cannot
