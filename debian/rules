@@ -5,7 +5,15 @@
 #export DH_VERBOSE=1
 
 # Hardening
+# gcc is built with --enable-default-pie on most architectures, so
+# dpkg-buildflags treats PIE as a compiler builtin and does not emit
+# -fPIE/-pie. blhc only inspects the command lines and reports them as
+# missing, so append them explicitly to keep the build log clean.
+# Appending unconditionally is safe: a duplicate -fPIE is harmless where
+# the compiler is not default-PIE and dpkg-buildflags already adds it.
 export DEB_BUILD_MAINT_OPTIONS=hardening=+all future=+lfs
+export DEB_CFLAGS_MAINT_APPEND = -fPIE
+export DEB_LDFLAGS_MAINT_APPEND = -fPIE -pie
 
 # Reimplement ./configure without relying on uname.
 include /usr/share/dpkg/architecture.mk
