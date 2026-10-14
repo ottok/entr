@@ -20,6 +20,9 @@ variables:
   SALSA_CI_LINTIAN_SHOW_OVERRIDES: 1
   # Enable additional quality assurance jobs
   SALSA_CI_DISABLE_WRAP_AND_SORT: 0
+  # Use a deterministic wrap-and-sort style: --wrap-always --short-indent
+  # --trailing-comma (see README 'Enable wrap-and-sort job')
+  SALSA_CI_WRAP_AND_SORT_ARGS: '-ast'
   SALSA_CI_DISABLE_LICENSERECON: 0
   SALSA_CI_ENABLE_DEBDIFF: 1
   # Faketime build and autopkgtest on the recommended amd64 lane. See the
