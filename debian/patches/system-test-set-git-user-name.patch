@@ -1,0 +1,32 @@
+From: =?utf-8?b?T3R0byBLZWvDpGzDpGluZW4=?= <otto@debian.org>
+Date: Wed, 14 Oct 2026 12:00:00 +0000
+Subject: Set git user.name in the system test
+
+The system test sets 'git config --local user.email' but never a
+user.name. git resolves the committer name from the GECOS field of the
+current user and /etc/mailname, which is not always configured, e.g. in
+CI containers. There git aborts with:
+
+    fatal: empty ident name (for <entr.test@example.com>) not allowed
+
+The warning is noisy and the failed 'git commit' makes the 'reverted
+stash of files' test depend on unrelated fallbacks. Set an explicit
+user.name alongside user.email so the test is self-contained.
+
+Forwarded: no, should be
+---
+ system_test.sh | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/system_test.sh b/system_test.sh
+index 96ebd04..4437433 100755
+--- a/system_test.sh
++++ b/system_test.sh
+@@ -403,6 +403,7 @@ try "exec single utility when an entire stash of files is reverted"
+ 		cd $tmp
+ 		git init -q
+ 		git config --local user.email entr.test@example.com
++		git config --local user.name "Entr Test"
+ 		git add *.h
+ 		git commit -m "initial checkin" -q
+ 		for f in `ls *.h | head`; do
