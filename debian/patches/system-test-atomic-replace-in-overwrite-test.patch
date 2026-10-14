@@ -1,0 +1,40 @@
+From: Otto Kekäläinen <otto@debian.org>
+Subject: Make 'watch and exec a program that is overwritten' test race-free
+
+execve(2) fails with ETXTBSY ('Text file busy') when the file being
+executed is still open for writing by another process. The test
+overwrote the watched script in place with 'cat >', so when entr reacts
+quickly to the change it may attempt to re-exec the script while cat
+still holds the write file descriptor open. This is timing dependent
+and intermittently fails on loaded or slower CI runners (observed on
+Debian arm64 autopkgtests).
+
+Instead write the new content to a temporary file and atomically
+replace the watched file with mv(1). entr handles replaced files
+(IN_MOVE_SELF mapped to NOTE_RENAME) and re-executes the new content,
+and the new inode is never open for writing, so the race is eliminated.
+The replacement file is explicitly chmod'ed executable, as the mode of
+the file being replaced is not inherited over a rename.
+
+Forwarded: yes
+---
+--- a/system_test.sh
++++ b/system_test.sh
+@@ -549,10 +549,16 @@
+ 	touch $tmp/script; chmod 755 $tmp/script
+ 	echo $tmp/script | entr -p $tmp/script $tmp/file1 > $tmp/exec.out &
+ 	bgpid=$! ; zz
+-	cat > $tmp/script <<-EOF
++	# Write the new content to a temporary file and atomically replace the
++	# watched script with mv(1). Overwriting the file in place with 'cat >'
++	# races with entr re-executing it: execve(2) fails with ETXTBSY when the
++	# file is still open for writing by another process.
++	cat > $tmp/script.new <<-EOF
+ 	#!/bin/sh
+ 	echo vroom
+ 	EOF
++	chmod 755 $tmp/script.new
++	mv $tmp/script.new $tmp/script
+ 	zz ; kill -INT $bgpid
+ 	wait $bgpid; assert "$?" "0"
+ 	assert "$(cat $tmp/exec.out)" "vroom"
