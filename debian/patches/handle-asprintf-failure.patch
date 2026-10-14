@@ -1,0 +1,34 @@
+From: Otto Kekalainen <otto@debian.org>
+Date: Wed, 14 Oct 2026 12:00:00 +0000
+Subject: Handle asprintf failure in start_log_filter
+
+As asprintf() is declared with warn_unused_result, so building with
+_FORTIFY_SOURCE enabled (as done by the Debian hardening flags) emitted:
+
+    status.c: In function 'start_log_filter':
+    status.c:35:17: warning: ignoring return value of 'asprintf' declared with attribute 'warn_unused_result' [-Wunused-result]
+       35 |                 asprintf(&awk_script, "%s/.entr/status.awk", pw->pw_dir);
+          |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Check the return value and abort on failure, which is the same behavior
+as the other error paths in this function.
+
+Forwarded: no, should be
+---
+ status.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/status.c b/status.c
+index 0031da9..17362ca 100644
+--- a/status.c
++++ b/status.c
+@@ -32,7 +32,8 @@ start_log_filter(int safe) {
+ 		pw = getpwuid(getuid());
+ 		if (pw == NULL)
+ 			errx(1, "getpwuid");
+-		asprintf(&awk_script, "%s/.entr/status.awk", pw->pw_dir);
++		if (asprintf(&awk_script, "%s/.entr/status.awk", pw->pw_dir) == -1)
++			errx(1, "asprintf");
+ 	}
+ 
+ 	awk_script_path = strdup(awk_script);
