@@ -1,3 +1,12 @@
+entr (5.9-1) UNRELEASED; urgency=medium
+
+  * New upstream release 5.9
+  * Includes the following security fix:
+    - CVE-2026-18370
+  * Bump Debhelper version from 13 to 14
+
+ -- Otto Kekäläinen <otto@debian.org>  Wed, 14 Oct 2026 11:11:11 +0000
+
 entr (5.8-1) unstable; urgency=medium
 
   [ Otto Kekäläinen ]
