@@ -2,7 +2,8 @@ Source: entr
 Section: misc
 Maintainer: Otto Kekäläinen <otto@debian.org>
 Build-Depends:
- debhelper-compat (= 13),
+ debhelper-compat (= 14),
+ dh-sequence-single-binary,
  libbsd-dev,
  pkgconf,
 Standards-Version: 4.7.4
@@ -13,7 +14,6 @@ Vcs-Browser: https://salsa.debian.org/debian/entr
 Package: entr
 Architecture: any
 Depends:
- ${misc:Depends},
  ${shlibs:Depends},
 Description: Run arbitrary commands when files change
  The Event Notify Test Runner (entr) runs arbitrary commands when
