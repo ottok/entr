@@ -34,10 +34,25 @@ variables:
   SALSA_CI_ENABLE_AUTOPKGTEST_FAKETIME: 1
   SALSA_CI_DISABLE_AUTOPKGTEST_FAKETIME: 0
   # Enable architectures for which this project has runners available
-  # (amd64 is always built; arm64 and ppc64el use their dedicated runners,
-  # and armel/armhf run on the arm64 runner as designed upstream)
+  # (amd64 is always built; arm64 uses its dedicated runner, and armel/
+  # armhf run on the arm64 runner as designed upstream)
+  #
+  # ppc64el builds are disabled: mmdebstrap fails on the ppc64el runner
+  # with 'newuidmap: write to uid_map failed: Operation not permitted':
+  #
+  #   newuidmap: write to uid_map failed: Operation not permitted
+  #   E: unable to pick chroot mode automatically (use --mode for manual selection)
+  #   I: automatically chosen mode: unshare
+  #   I: chroot architecture ppc64el is equal to the host's architecture
+  #   I: finding correct signed-by value...
+  #   I: automatically chosen format: tar
+  #   I: using /tmp/mmdebstrap.klvAedA6cY as tempdir
+  #   newuidmap: write to uid_map failed: Operation not permitted
+  #   E: newuidmap 101  0 1000 1 1 100000 1 failed:
+  #   E: child had a non-zero exit status: 25
+  #   E: chown failed
+  SALSA_CI_DISABLE_BUILD_PACKAGE_PPC64EL: 1
   SALSA_CI_DISABLE_BUILD_PACKAGE_ARM64: 0
-  SALSA_CI_DISABLE_BUILD_PACKAGE_PPC64EL: 0
   SALSA_CI_DISABLE_BUILD_PACKAGE_RISCV64: 0
   SALSA_CI_DISABLE_AUTOPKGTEST_ARM64: 0
   # Enable cross-builds
@@ -59,10 +74,7 @@ build arm64:
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
 
-build ppc64el:
-  extends: .build-package-ppc64el
-  rules:
-    - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+# ppc64el build disabled, see the comment above SALSA_CI_DISABLE_BUILD_PACKAGE_PPC64EL
 
 build riscv64:
   extends: .build-package-riscv64
