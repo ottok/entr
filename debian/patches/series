@@ -1,1 +1,2 @@
 system-test-with-system-binary.patch
+system-test-atomic-replace-in-overwrite-test.patch
