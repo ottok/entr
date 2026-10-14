@@ -5,15 +5,39 @@ include:
 
 # Override Salsa CI defaults with Entr specific variations
 variables:
+  # Make autopkgtest strict: only exit code 0 counts as success
   SALSA_CI_AUTOPKGTEST_ALLOWED_EXIT_STATUS: 0
-  SALSA_CI_DISABLE_BUILD_PACKAGE_TWICE: 0
-  SALSA_CI_ENABLE_ATOMIC_REPROTEST: 0
+  # Validate that 'debian/rules clean' restores the source tree. Replaces
+  # the obsolete build-twice test job (SALSA_CI_DISABLE_BUILD_PACKAGE_TWICE)
+  SALSA_CI_DISABLE_VALIDATE_PACKAGE_CLEAN_UP: 0
+  # Test build profiles
   SALSA_CI_ENABLE_BUILD_PACKAGE_PROFILES: 1
   BUILD_PROFILES: nocheck,nodoc
-  # Enable more architectures
+  # Generate dbgsym packages so that debug symbols get built and tested too
+  SALSA_CI_DISABLE_BUILD_DBGSYM: 0
+  # Make Lintian stricter: fail also on warnings and show overridden tags
+  SALSA_CI_LINTIAN_FAIL_WARNING: 1
+  SALSA_CI_LINTIAN_SHOW_OVERRIDES: 1
+  # Enable additional quality assurance jobs
+  SALSA_CI_DISABLE_WRAP_AND_SORT: 0
+  SALSA_CI_DISABLE_LICENSERECON: 0
+  SALSA_CI_ENABLE_DEBDIFF: 1
+  # Faketime build and autopkgtest on the recommended amd64 lane. See the
+  # README section 'Important warning for faketime jobs' for the caveats.
+  SALSA_CI_DISABLE_BUILD_PACKAGE_FAKETIME: 0
+  # Note: the upstream template only schedules the faketime autopkgtest when
+  # SALSA_CI_ENABLE_AUTOPKGTEST_FAKETIME is truthy (the disable variable
+  # alone is not enough), so both are set here.
+  SALSA_CI_ENABLE_AUTOPKGTEST_FAKETIME: 1
+  SALSA_CI_DISABLE_AUTOPKGTEST_FAKETIME: 0
+  # Enable architectures for which this project has runners available
+  # (amd64 is always built; arm64 and ppc64el use their dedicated runners,
+  # and armel/armhf run on the arm64 runner as designed upstream)
   SALSA_CI_DISABLE_BUILD_PACKAGE_ARMEL: 0
   SALSA_CI_DISABLE_BUILD_PACKAGE_ARMHF: 0
   SALSA_CI_DISABLE_BUILD_PACKAGE_ARM64: 0
+  SALSA_CI_DISABLE_BUILD_PACKAGE_PPC64EL: 0
+  SALSA_CI_DISABLE_AUTOPKGTEST_ARM64: 0
   # Enable cross-builds
   SALSA_CI_DISABLE_CROSSBUILD_ARM64: 0
 
@@ -25,30 +49,30 @@ stages:
   - upgrade package and distro
   - publish  # Stage referenced by Salsa CI template aptly stanza, so must exist even though not used
 
-# Additional builds on arm64 only when in main project as only it has runners
-# available in https://salsa.debian.org/groups/debian/-/runners
+# Additional builds on these architectures only when in the main project, as
+# only it has the corresponding runners available in
+# https://salsa.debian.org/groups/debian/-/runners
 build arm64:
   extends: .build-package-arm64
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
-  # disable until a shared ARM runner is available again
-  when: manual
 
 build armel:
   extends: .build-package-armel
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
-  # disable until a shared ARM runner is available again
-  when: manual
 
 build armhf:
   extends: .build-package-armhf
   rules:
     - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
-  # disable until a shared ARM runner is available again
-  when: manual
 
-# Temporairly disabled as riscv64 builders are offline
+build ppc64el:
+  extends: .build-package-ppc64el
+  rules:
+    - if: $CI_PROJECT_ROOT_NAMESPACE  == "debian"
+
+# Disabled as no riscv64 runner is available for this project
 # build riscv64:
 #   extends: .build-package-riscv64
 #   rules:
@@ -73,6 +97,16 @@ test-crossbuild-armel:
   extends: .test-crossbuild-package-arm64
   variables:
     HOST_ARCH: armel
+
+# Custom cross-build architecture not in Salsa CI. Upstream provides no
+# native s390x build job template or build image, so the s390x runner cannot
+# be used for a native build; cross-building for s390x on the amd64 runners
+# is the closest supported equivalent.
+test-crossbuild-s390x:
+  stage: build
+  extends: .test-crossbuild-package-arm64
+  variables:
+    HOST_ARCH: s390x
 
 # Backports
 
